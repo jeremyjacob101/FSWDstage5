@@ -1,122 +1,113 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { StrictMode, useState } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
+import { LoginScreen, RegisterScreen } from "./Auth";
+import { AppShell } from "./components/AppShell";
+import {
+  mockAlbums,
+  mockComments,
+  mockPhotos,
+  mockPosts,
+  mockTodos,
+} from "./data/data";
+import type { Album, Comment, Photo, Post, Todo, User } from "./data/types";
+import { AlbumsPage } from "./pages/AlbumsPage";
+import { HomePage } from "./pages/HomePage";
+import { PhotosPage } from "./pages/PhotosPage";
+import { PostsPage } from "./pages/PostsPage";
+import { TodosPage } from "./pages/TodosPage";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+const STORAGE_KEY = "entryBaseUser";
 
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <BrowserRouter>
+      <EntryBaseRoutes />
+    </BrowserRouter>
+  );
 }
 
-export default App
+function EntryBaseRoutes() {
+  const navigate = useNavigate();
+  const savedUser = localStorage.getItem(STORAGE_KEY);
+  const [activeUser, setActiveUser] = useState<User | null>(() =>
+    savedUser ? (JSON.parse(savedUser) as User) : null,
+  );
+  const [todos, setTodos] = useState<Todo[]>(mockTodos);
+  const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [comments, setComments] = useState<Comment[]>(mockComments);
+  const [albums, setAlbums] = useState<Album[]>(mockAlbums);
+  const [photos, setPhotos] = useState<Photo[]>(mockPhotos);
+
+  const login = (user: User) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    setActiveUser(user);
+    navigate("/");
+  };
+
+  const logout = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setActiveUser(null);
+    navigate("/login");
+  };
+
+  if (!activeUser) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginScreen onLogin={login} />} />
+        <Route path="/register" element={<RegisterScreen onLogin={login} />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={<AppShell activeUser={activeUser} onLogout={logout} />}
+      >
+        <Route index element={<HomePage activeUser={activeUser} />} />
+        <Route
+          path="todos"
+          element={<TodosPage todos={todos} setTodos={setTodos} />}
+        />
+        <Route
+          path="posts"
+          element={
+            <PostsPage
+              posts={posts}
+              setPosts={setPosts}
+              comments={comments}
+              setComments={setComments}
+            />
+          }
+        />
+        <Route
+          path="albums"
+          element={<AlbumsPage albums={albums} setAlbums={setAlbums} />}
+        />
+        <Route
+          path="photos"
+          element={
+            <PhotosPage albums={albums} photos={photos} setPhotos={setPhotos} />
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
