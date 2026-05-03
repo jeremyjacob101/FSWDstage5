@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { Album, Photo } from "../data/types";
 import { Button, EmptyState, ScreenHeader } from "../components/ui";
-import { nextId } from "../utils/ids";
+import { nextId } from "./utils/pages";
 
 export function PhotosPage({
   albums,

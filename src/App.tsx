@@ -7,7 +7,7 @@ import {
   Routes,
   useNavigate,
 } from "react-router-dom";
-import { LoginScreen, RegisterScreen } from "./Auth";
+import { LoginScreen, RegisterScreen } from "./components/Auth";
 import { AppShell } from "./components/AppShell";
 import {
   mockAlbums,
@@ -23,6 +23,7 @@ import { PhotosPage } from "./pages/PhotosPage";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
 import "./App.css";
+import "./pages/css/Pages.css";
 
 const STORAGE_KEY = "entryBaseUser";
 

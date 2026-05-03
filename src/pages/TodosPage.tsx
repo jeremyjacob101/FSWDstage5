@@ -9,7 +9,7 @@ import {
   SearchInput,
   Toolbar,
 } from "../components/ui";
-import { nextId } from "../utils/ids";
+import { nextId } from "./utils/pages";
 
 export function TodosPage({
   todos,

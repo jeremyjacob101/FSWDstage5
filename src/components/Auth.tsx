@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { mockUser } from "./data/data";
-import type { User } from "./data/types";
+import { mockUser } from "../data/data";
+import type { User } from "../data/types";
 import "./Auth.css";
 
 type AuthProps = {
