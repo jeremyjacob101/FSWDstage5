@@ -1,3 +1,5 @@
-# FSWDstage5
+# FSWD Stage 5
 
-Abraham Soclof | Jeremy Jacob
+## EntryBase
+
+### Abraham Soclof | Jeremy Jacob

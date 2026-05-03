@@ -1,71 +1,24 @@
-# dependencies
-node_modules/
-.pnpm-store/
-.npm/
-
-# build outputs
-dist/
-build/
-.out/
-.next/
-coverage/
-
-# logs
-logs/
+# Logs
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# environment variables
-.env
-.env.*
-!.env.example
+node_modules
+dist
+dist-ssr
+*.local
 
-# OS files
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-
-# editor / IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# macOS
-.AppleDouble
-.LSOverride
-
-# Linux
-*~
-
-# misc
-.cache/
-.temp/
-.tmp/
-
-# TypeScript
-*.tsbuildinfo
-
-# Firebase
-.firebase/
-firebase-debug.log
-
-# Vercel
-.vercel/
-
-# Supabase
-.supabase/
-
-# Python (in case you use scripts)
-__pycache__/
-*.pyc
-.venv/
-env/
-venv/
-
-# optional: lockfiles (comment out if you want them committed)
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
