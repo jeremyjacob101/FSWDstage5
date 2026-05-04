@@ -63,7 +63,7 @@ function Header({
 
 function NavBar({ onLogout }: { onLogout: () => void }) {
   const navItems = [
-    { label: "Home", to: "/" },
+    { label: "Home", to: "/home" },
     { label: "Todos", to: "/todos" },
     { label: "Posts", to: "/posts" },
     { label: "Albums", to: "/albums" },
@@ -76,7 +76,7 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
           key={item.to}
           to={item.to}
           className={({ isActive }) => (isActive ? "active" : undefined)}
-          end={item.to === "/"}
+          end
         >
           {item.label}
         </NavLink>

@@ -3,6 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { mockUser } from "../data/data";
 import type { User } from "../data/types";
+import { authenticateUser } from "../services/api";
 import "./Auth.css";
 
 type AuthProps = {
@@ -13,19 +14,37 @@ export function LoginScreen({ onLogin }: AuthProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit: ComponentProps<"form">["onSubmit"] = (event) => {
+  const handleSubmit: ComponentProps<"form">["onSubmit"] = async (event) => {
     event.preventDefault();
+    setError("");
 
-    if (
-      username.trim() === mockUser.username &&
-      password === mockUser.website
-    ) {
-      onLogin(mockUser);
+    const cleanUsername = username.trim();
+
+    if (!cleanUsername || !password) {
+      setError("Please enter your username and password.");
       return;
     }
 
-    setError("We could not sign you in with those credentials.");
+    try {
+      setIsSubmitting(true);
+      const user = await authenticateUser({
+        username: cleanUsername,
+        password,
+      });
+
+      if (user) {
+        onLogin(user);
+        return;
+      }
+
+      setError("We could not sign you in with those credentials.");
+    } catch {
+      setError("Could not reach the local server. Please start JSON-Server and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -55,8 +74,8 @@ export function LoginScreen({ onLogin }: AuthProps) {
           />
         </label>
         {error && <AuthError message={error} />}
-        <button type="submit" className="button primary">
-          Login
+        <button type="submit" className="button primary" disabled={isSubmitting}>
+          {isSubmitting ? "Checking..." : "Login"}
         </button>
         <Link to="/register" className="text-button">
           Create an account

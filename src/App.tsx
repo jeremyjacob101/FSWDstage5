@@ -50,7 +50,7 @@ function EntryBaseRoutes() {
   const login = (user: User) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     setActiveUser(user);
-    navigate("/");
+    navigate("/home");
   };
 
   const logout = () => {
@@ -75,7 +75,8 @@ function EntryBaseRoutes() {
         path="/"
         element={<AppShell activeUser={activeUser} onLogout={logout} />}
       >
-        <Route index element={<HomePage activeUser={activeUser} />} />
+        <Route index element={<Navigate to="/home" replace />} />
+        <Route path="home" element={<HomePage activeUser={activeUser} />} />
         <Route
           path="todos"
           element={<TodosPage todos={todos} setTodos={setTodos} />}
@@ -101,7 +102,7 @@ function EntryBaseRoutes() {
             <PhotosPage albums={albums} photos={photos} setPhotos={setPhotos} />
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>
     </Routes>
   );
