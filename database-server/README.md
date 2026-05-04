@@ -1,4 +1,3 @@
-
 # Database Server
 
 ## Start the server
@@ -17,8 +16,7 @@ Triggers the following script in `package.json`:
 
 Defined in `routes.json`:
 
-| Route | Maps to | Method | Description |
-|-------|---------|--------|-------------|
-| `/login` | `/users` | `POST` | Fetch user by username for client-side auth |
-| `/register` | `/users` | `POST` | Create a new user |
-
+| Route       | Maps to  | Method | Description                                 |
+| ----------- | -------- | ------ | ------------------------------------------- |
+| `/login`    | `/users` | `POST` | Fetch user by username for client-side auth |
+| `/register` | `/users` | `POST` | Create a new user                           |
