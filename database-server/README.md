@@ -6,11 +6,11 @@
 npm run database-server
 ```
 
-Starts a local REST API server on port 3001. json-server watches `db.json` for changes and reloads automatically.
+Starts a local REST API server on port 1837. json-server watches `db.json` for changes and reloads automatically.
 
 Triggers the following script in `package.json`:
 
-`"database-server": "json-server ./database-server/db.json --port 3001 --routes ./database-server/routes.json"`
+`"database-server": "json-server ./database-server/db.json --port 1837 --routes ./database-server/routes.json"`
 
 ## Custom Routes
 
