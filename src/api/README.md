@@ -4,7 +4,7 @@ Based off the following [repo](https://github.com/typicode/json-server/tree/v0.1
 
 ## Login
 
-- `GET /login?username={username}`
+- `GET /users?username={username}`
 - Body: none
 - Response: `[{ ID, name, username, website, email }]`
 - Errors: empty array if username not found

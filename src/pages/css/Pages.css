@@ -268,3 +268,7 @@
   border: 1px dashed var(--border-strong);
   font-weight: 800;
 }
+
+.scroll-sentinel {
+  min-height: 1px;
+}

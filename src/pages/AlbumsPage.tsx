@@ -1,8 +1,6 @@
 import { useState } from "react";
-import type { ComponentProps } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockUser } from "../data/data";
-import type { Album } from "../data/types";
+import type { Album, User } from "../data/types";
 import {
   Button,
   EmptyState,
@@ -10,18 +8,23 @@ import {
   SearchInput,
   Toolbar,
 } from "../components/ui";
-import { nextId } from "./utils/pages";
+import { createAlbum } from "../api/api";
 
 export function AlbumsPage({
+  activeUser,
   albums,
   setAlbums,
+  isLoading,
 }: {
+  activeUser: User;
   albums: Album[];
   setAlbums: React.Dispatch<React.SetStateAction<Album[]>>;
+  isLoading: boolean;
 }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [newTitle, setNewTitle] = useState("");
+  const [error, setError] = useState("");
   const visibleAlbums = albums.filter((album) => {
     const query = search.toLowerCase().trim();
     return (
@@ -30,16 +33,19 @@ export function AlbumsPage({
     );
   });
 
-  const addAlbum: ComponentProps<"form">["onSubmit"] = (event) => {
+  const addAlbum: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     const title = newTitle.trim();
     if (!title) return;
 
-    setAlbums((currentAlbums) => [
-      { id: nextId(currentAlbums), userId: mockUser.id, title },
-      ...currentAlbums,
-    ]);
-    setNewTitle("");
+    try {
+      setError("");
+      const album = await createAlbum({ userId: activeUser.id, title });
+      setAlbums((currentAlbums) => [album, ...currentAlbums]);
+      setNewTitle("");
+    } catch {
+      setError("Could not create the album. Please try again.");
+    }
   };
 
   return (
@@ -63,21 +69,23 @@ export function AlbumsPage({
         />
         <Button type="submit">New Album</Button>
       </form>
+      {error && <p className="error-state">{error}</p>}
       <div className="album-grid">
+        {isLoading && <EmptyState message="Loading albums..." />}
         {visibleAlbums.map((album) => (
           <article className="album-card" key={album.id}>
             <span className="id-badge">#{album.id}</span>
             <h3>{album.title}</h3>
             <Button
               onClick={() =>
-                navigate("/photos", { state: { selectedAlbumId: album.id } })
+                navigate(`/users/${activeUser.id}/albums/${album.id}/photos`)
               }
             >
               Open album
             </Button>
           </article>
         ))}
-        {!visibleAlbums.length && (
+        {!isLoading && !visibleAlbums.length && (
           <EmptyState message="No albums match that search." />
         )}
       </div>

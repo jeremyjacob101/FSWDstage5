@@ -1,6 +1,5 @@
-import { useState } from "react";
-import type { ComponentProps } from "react";
-import type { Comment, Post } from "../data/types";
+import { useEffect, useState } from "react";
+import type { Comment, Post, User } from "../data/types";
 import {
   Button,
   EmptyState,
@@ -8,28 +7,73 @@ import {
   SearchInput,
   Toolbar,
 } from "../components/ui";
-import { nextId } from "./utils/pages";
+import {
+  createComment,
+  deleteComment,
+  deletePost,
+  getCommentsForPost,
+  updateComment,
+  updatePost,
+} from "../api/api";
 
 export function PostsPage({
+  activeUser,
   posts,
   setPosts,
-  comments,
-  setComments,
+  isLoading,
 }: {
+  activeUser: User;
   posts: Post[];
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
-  comments: Comment[];
-  setComments: React.Dispatch<React.SetStateAction<Comment[]>>;
+  isLoading: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [error, setError] = useState("");
   const [selectedPostId, setSelectedPostId] = useState<number | undefined>(
     posts[0]?.id,
   );
 
   const selectedPost =
     posts.find((post) => post.id === selectedPostId) ?? posts[0];
+
+  useEffect(() => {
+    if (!selectedPost) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    async function loadComments() {
+      setIsLoadingComments(true);
+      setError("");
+
+      try {
+        const nextComments = await getCommentsForPost(selectedPost.id);
+
+        if (isCurrent) {
+          setComments(nextComments);
+        }
+      } catch {
+        if (isCurrent) {
+          setError("Could not load comments for this post.");
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoadingComments(false);
+        }
+      }
+    }
+
+    void loadComments();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedPost]);
 
   const visiblePosts = posts.filter((post) => {
     const query = search.toLowerCase().trim();
@@ -39,44 +83,62 @@ export function PostsPage({
     );
   });
 
-  const addComment: ComponentProps<"form">["onSubmit"] = (event) => {
+  const addComment: React.SubmitEventHandler<HTMLFormElement> = async (
+    event,
+  ) => {
     event.preventDefault();
     const body = newComment.trim();
     if (!body || !selectedPost) return;
 
-    setComments((currentComments) => [
-      ...currentComments,
-      {
-        id: nextId(currentComments),
+    try {
+      setError("");
+      const comment = await createComment({
         postId: selectedPost.id,
-        name: "Workspace note",
-        email: "bret@entrybase.local",
+        name: activeUser.name,
+        email: activeUser.email,
         body,
         ownedByCurrentUser: true,
-      },
-    ]);
-    setNewComment("");
-    setShowComments(true);
+      });
+
+      setComments((currentComments) => [...currentComments, comment]);
+      setNewComment("");
+      setShowComments(true);
+    } catch {
+      setError("Could not add the comment. Please try again.");
+    }
   };
 
-  const editPost = (post: Post) => {
+  const editPost = async (post: Post) => {
     const title = window.prompt("Update post title", post.title)?.trim();
     if (!title) return;
-    setPosts((currentPosts) =>
-      currentPosts.map((currentPost) =>
-        currentPost.id === post.id ? { ...currentPost, title } : currentPost,
-      ),
-    );
+
+    try {
+      setError("");
+      const updatedPost = await updatePost(post.id, { title });
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? updatedPost : currentPost,
+        ),
+      );
+    } catch {
+      setError("Could not update the post. Please try again.");
+    }
   };
 
-  const deletePost = (post: Post) => {
-    setPosts((currentPosts) =>
-      currentPosts.filter((currentPost) => currentPost.id !== post.id),
-    );
-    if (selectedPost?.id === post.id) {
-      setSelectedPostId(
-        posts.find((currentPost) => currentPost.id !== post.id)?.id,
-      );
+  const removePost = async (post: Post) => {
+    try {
+      setError("");
+      await deletePost(post.id);
+      setPosts((currentPosts) => {
+        const nextPosts = currentPosts.filter(
+          (currentPost) => currentPost.id !== post.id,
+        );
+        setSelectedPostId(nextPosts[0]?.id);
+        return nextPosts;
+      });
+    } catch {
+      setError("Could not delete the post. Please try again.");
     }
   };
 
@@ -97,8 +159,10 @@ export function PostsPage({
           placeholder="Search post id or title"
         />
       </Toolbar>
+      {error && <p className="error-state">{error}</p>}
       <div className="split-layout">
         <div className="post-list">
+          {isLoading && <EmptyState message="Loading posts..." />}
           {visiblePosts.map((post) => (
             <article
               className={
@@ -123,13 +187,13 @@ export function PostsPage({
                 <Button variant="secondary" onClick={() => editPost(post)}>
                   Edit
                 </Button>
-                <Button variant="danger" onClick={() => deletePost(post)}>
+                <Button variant="danger" onClick={() => void removePost(post)}>
                   Delete
                 </Button>
               </div>
             </article>
           ))}
-          {!visiblePosts.length && (
+          {!isLoading && !visiblePosts.length && (
             <EmptyState message="No posts match that search." />
           )}
         </div>
@@ -155,6 +219,9 @@ export function PostsPage({
                     />
                     <Button type="submit">Add Comment</Button>
                   </form>
+                  {isLoadingComments && (
+                    <EmptyState message="Loading comments..." />
+                  )}
                   {postComments.map((comment) => (
                     <article className="comment-card" key={comment.id}>
                       <strong>{comment.name}</strong>
@@ -169,27 +236,43 @@ export function PostsPage({
                                 .prompt("Update comment", comment.body)
                                 ?.trim();
                               if (!body) return;
-                              setComments((currentComments) =>
-                                currentComments.map((currentComment) =>
-                                  currentComment.id === comment.id
-                                    ? { ...currentComment, body }
-                                    : currentComment,
-                                ),
-                              );
+                              void updateComment(comment.id, { body })
+                                .then((updatedComment) => {
+                                  setComments((currentComments) =>
+                                    currentComments.map((currentComment) =>
+                                      currentComment.id === comment.id
+                                        ? updatedComment
+                                        : currentComment,
+                                    ),
+                                  );
+                                })
+                                .catch(() => {
+                                  setError(
+                                    "Could not update the comment. Please try again.",
+                                  );
+                                });
                             }}
                           >
                             Edit
                           </Button>
                           <Button
                             variant="danger"
-                            onClick={() =>
-                              setComments((currentComments) =>
-                                currentComments.filter(
-                                  (currentComment) =>
-                                    currentComment.id !== comment.id,
-                                ),
-                              )
-                            }
+                            onClick={() => {
+                              void deleteComment(comment.id)
+                                .then(() => {
+                                  setComments((currentComments) =>
+                                    currentComments.filter(
+                                      (currentComment) =>
+                                        currentComment.id !== comment.id,
+                                    ),
+                                  );
+                                })
+                                .catch(() => {
+                                  setError(
+                                    "Could not delete the comment. Please try again.",
+                                  );
+                                });
+                            }}
                           >
                             Delete
                           </Button>

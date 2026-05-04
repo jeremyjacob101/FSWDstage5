@@ -6,21 +6,23 @@ import { Button } from "./ui";
 export function AppShell({
   activeUser,
   onLogout,
+  notice,
 }: {
   activeUser: User;
   onLogout: () => void;
+  notice?: string;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
 
   return (
     <div className="app-shell">
-      <Header
-        user={activeUser}
+      <NavBar
+        activeUser={activeUser}
         onInfo={() => setInfoOpen(true)}
         onLogout={onLogout}
       />
-      <NavBar onLogout={onLogout} />
       <main className="page-content">
+        {notice && <p className="error-state page-notice">{notice}</p>}
         <Outlet />
       </main>
       {infoOpen && (
@@ -30,60 +32,52 @@ export function AppShell({
   );
 }
 
-function Header({
-  user,
+function NavBar({
+  activeUser,
   onInfo,
   onLogout,
 }: {
-  user: User;
+  activeUser: User;
   onInfo: () => void;
   onLogout: () => void;
 }) {
   return (
-    <header className="app-header">
-      <div className="header-title">
-        <span className="brand-mark">EB</span>
-        <div>
-          <p className="eyebrow">Personal workspace</p>
-          <h1>EntryBase</h1>
-        </div>
-      </div>
-      <div className="header-actions">
-        <span className="user-pill">{user.name}</span>
-        <Button variant="secondary" onClick={onInfo}>
-          Info
-        </Button>
-        <Button variant="ghost" onClick={onLogout}>
-          Logout
-        </Button>
-      </div>
-    </header>
-  );
-}
-
-function NavBar({ onLogout }: { onLogout: () => void }) {
-  const navItems = [
-    { label: "Home", to: "/home" },
-    { label: "Todos", to: "/todos" },
-    { label: "Posts", to: "/posts" },
-    { label: "Albums", to: "/albums" },
-  ];
-
-  return (
     <nav className="nav-bar" aria-label="EntryBase sections">
-      {navItems.map((item) => (
+      <NavLink to="/home" className="nav-brand" aria-label="EntryBase home">
+        <span className="brand-mark">EB</span>
+      </NavLink>
+      <div className="nav-links">
+        <button type="button" onClick={onInfo}>
+          Info
+        </button>
         <NavLink
-          key={item.to}
-          to={item.to}
+          to={`/users/${activeUser.id}/todos`}
           className={({ isActive }) => (isActive ? "active" : undefined)}
           end
         >
-          {item.label}
+          Todos
         </NavLink>
-      ))}
-      <button type="button" onClick={onLogout}>
-        Logout
-      </button>
+        <NavLink
+          to={`/users/${activeUser.id}/posts`}
+          className={({ isActive }) => (isActive ? "active" : undefined)}
+          end
+        >
+          Posts
+        </NavLink>
+        <NavLink
+          to={`/users/${activeUser.id}/albums`}
+          className={({ isActive }) => (isActive ? "active" : undefined)}
+          end
+        >
+          Albums
+        </NavLink>
+      </div>
+      <div className="nav-user-area">
+        <button type="button" onClick={onLogout}>
+          Logout
+        </button>
+        <span className="user-pill nav-user">{activeUser.name}</span>
+      </div>
     </nav>
   );
 }

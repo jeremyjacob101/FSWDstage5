@@ -22,17 +22,17 @@ export function HomePage({ activeUser }: { activeUser: User }) {
         <DashboardCard
           title="Todos"
           description="Track active work, sort priorities, and mark progress as it happens."
-          onClick={() => navigate("/todos")}
+          onClick={() => navigate(`/users/${activeUser.id}/todos`)}
         />
         <DashboardCard
           title="Posts"
           description="Draft updates, review details, and keep discussion attached to the work."
-          onClick={() => navigate("/posts")}
+          onClick={() => navigate(`/users/${activeUser.id}/posts`)}
         />
         <DashboardCard
           title="Albums"
           description="Collect visual references and open focused galleries when you need them."
-          onClick={() => navigate("/albums")}
+          onClick={() => navigate(`/users/${activeUser.id}/albums`)}
         />
       </div>
     </section>

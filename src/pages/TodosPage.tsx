@@ -1,7 +1,5 @@
 import { useState } from "react";
-import type { ComponentProps } from "react";
-import { mockUser } from "../data/data";
-import type { Todo } from "../data/types";
+import type { Todo, User } from "../data/types";
 import {
   Button,
   EmptyState,
@@ -9,18 +7,23 @@ import {
   SearchInput,
   Toolbar,
 } from "../components/ui";
-import { nextId } from "./utils/pages";
+import { createTodo, deleteTodo, updateTodo } from "../api/api";
 
 export function TodosPage({
+  activeUser,
   todos,
   setTodos,
+  isLoading,
 }: {
+  activeUser: User;
   todos: Todo[];
   setTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
+  isLoading: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"id" | "title" | "completed">("id");
   const [newTitle, setNewTitle] = useState("");
+  const [error, setError] = useState("");
 
   const query = search.toLowerCase().trim();
   const visibleTodos = [...todos]
@@ -42,32 +45,71 @@ export function TodosPage({
       return first.id - second.id;
     });
 
-  const addTodo: ComponentProps<"form">["onSubmit"] = (event) => {
+  const addTodo: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     const title = newTitle.trim();
     if (!title) return;
 
-    setTodos((currentTodos) => [
-      {
-        id: nextId(currentTodos),
-        userId: mockUser.id,
+    try {
+      setError("");
+      const todo = await createTodo({
+        userId: activeUser.id,
         title,
         completed: false,
-      },
-      ...currentTodos,
-    ]);
-    setNewTitle("");
+      });
+
+      setTodos((currentTodos) => [todo, ...currentTodos]);
+      setNewTitle("");
+    } catch {
+      setError("Could not create the todo. Please try again.");
+    }
   };
 
-  const editTodo = (todo: Todo) => {
+  const editTodo = async (todo: Todo) => {
     const title = window.prompt("Update todo title", todo.title)?.trim();
     if (!title) return;
 
-    setTodos((currentTodos) =>
-      currentTodos.map((currentTodo) =>
-        currentTodo.id === todo.id ? { ...currentTodo, title } : currentTodo,
-      ),
-    );
+    try {
+      setError("");
+      const updatedTodo = await updateTodo(todo.id, { title });
+
+      setTodos((currentTodos) =>
+        currentTodos.map((currentTodo) =>
+          currentTodo.id === todo.id ? updatedTodo : currentTodo,
+        ),
+      );
+    } catch {
+      setError("Could not update the todo. Please try again.");
+    }
+  };
+
+  const toggleTodo = async (todo: Todo) => {
+    try {
+      setError("");
+      const updatedTodo = await updateTodo(todo.id, {
+        completed: !todo.completed,
+      });
+
+      setTodos((currentTodos) =>
+        currentTodos.map((currentTodo) =>
+          currentTodo.id === todo.id ? updatedTodo : currentTodo,
+        ),
+      );
+    } catch {
+      setError("Could not update the todo status. Please try again.");
+    }
+  };
+
+  const removeTodo = async (todo: Todo) => {
+    try {
+      setError("");
+      await deleteTodo(todo.id);
+      setTodos((currentTodos) =>
+        currentTodos.filter((currentTodo) => currentTodo.id !== todo.id),
+      );
+    } catch {
+      setError("Could not delete the todo. Please try again.");
+    }
   };
 
   return (
@@ -102,7 +144,9 @@ export function TodosPage({
         />
         <Button type="submit">New Todo</Button>
       </form>
+      {error && <p className="error-state">{error}</p>}
       <div className="list-grid">
+        {isLoading && <EmptyState message="Loading todos..." />}
         {visibleTodos.map((todo) => (
           <article className="todo-row" key={todo.id}>
             <span className="id-badge">#{todo.id}</span>
@@ -110,15 +154,7 @@ export function TodosPage({
               <input
                 type="checkbox"
                 checked={todo.completed}
-                onChange={() =>
-                  setTodos((currentTodos) =>
-                    currentTodos.map((currentTodo) =>
-                      currentTodo.id === todo.id
-                        ? { ...currentTodo, completed: !currentTodo.completed }
-                        : currentTodo,
-                    ),
-                  )
-                }
+                onChange={() => void toggleTodo(todo)}
               />
               <span>{todo.title}</span>
             </label>
@@ -126,22 +162,13 @@ export function TodosPage({
               <Button variant="secondary" onClick={() => editTodo(todo)}>
                 Edit
               </Button>
-              <Button
-                variant="danger"
-                onClick={() =>
-                  setTodos((currentTodos) =>
-                    currentTodos.filter(
-                      (currentTodo) => currentTodo.id !== todo.id,
-                    ),
-                  )
-                }
-              >
+              <Button variant="danger" onClick={() => void removeTodo(todo)}>
                 Delete
               </Button>
             </div>
           </article>
         ))}
-        {!visibleTodos.length && (
+        {!isLoading && !visibleTodos.length && (
           <EmptyState message="No todos match that search." />
         )}
       </div>

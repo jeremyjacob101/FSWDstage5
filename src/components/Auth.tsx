@@ -1,22 +1,24 @@
 import { useState } from "react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { mockUser } from "../data/data";
 import type { User } from "../data/types";
-import { authenticateUser } from "../services/api";
+import {
+  authenticateUser,
+  completeUserDetails,
+  createRegisteredUser,
+  findUserByUsername,
+} from "../api/api";
 import "./Auth.css";
 
-type AuthProps = {
-  onLogin: (user: User) => void;
-};
-
-export function LoginScreen({ onLogin }: AuthProps) {
+export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit: ComponentProps<"form">["onSubmit"] = async (event) => {
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (
+    event,
+  ) => {
     event.preventDefault();
     setError("");
 
@@ -41,7 +43,9 @@ export function LoginScreen({ onLogin }: AuthProps) {
 
       setError("We could not sign you in with those credentials.");
     } catch {
-      setError("Could not reach the local server. Please start JSON-Server and try again.");
+      setError(
+        "Could not reach the local server. Please start JSON-Server and try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -74,7 +78,11 @@ export function LoginScreen({ onLogin }: AuthProps) {
           />
         </label>
         {error && <AuthError message={error} />}
-        <button type="submit" className="button primary" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className="button primary"
+          disabled={isSubmitting}
+        >
           {isSubmitting ? "Checking..." : "Login"}
         </button>
         <Link to="/register" className="text-button">
@@ -85,16 +93,25 @@ export function LoginScreen({ onLogin }: AuthProps) {
   );
 }
 
-export function RegisterScreen({ onLogin }: AuthProps) {
+export function RegisterScreen({
+  onRegistered,
+}: {
+  onRegistered: (user: User) => void;
+}) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [verifyPassword, setVerifyPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit: ComponentProps<"form">["onSubmit"] = (event) => {
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (
+    event,
+  ) => {
     event.preventDefault();
+    setError("");
+    const cleanUsername = username.trim();
 
-    if (!username.trim() || !password || !verifyPassword) {
+    if (!cleanUsername || !password || !verifyPassword) {
       setError("Please fill in every field.");
       return;
     }
@@ -104,14 +121,28 @@ export function RegisterScreen({ onLogin }: AuthProps) {
       return;
     }
 
-    onLogin({
-      ...mockUser,
-      id: 99,
-      name: username,
-      username,
-      email: `${username.toLowerCase()}@entrybase.local`,
-      website: password,
-    });
+    try {
+      setIsSubmitting(true);
+      const existingUser = await findUserByUsername(cleanUsername);
+
+      if (existingUser) {
+        setError("That username already exists. Please choose another one.");
+        return;
+      }
+
+      const createdUser = await createRegisteredUser({
+        username: cleanUsername,
+        password,
+      });
+
+      onRegistered(createdUser);
+    } catch {
+      setError(
+        "Could not create the account. Please make sure JSON-Server is running.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -149,11 +180,194 @@ export function RegisterScreen({ onLogin }: AuthProps) {
           />
         </label>
         {error && <AuthError message={error} />}
-        <button type="submit" className="button primary">
-          Create Account
+        <button
+          type="submit"
+          className="button primary"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Creating..." : "Create Account"}
         </button>
         <Link to="/login" className="text-button">
           Back to login
+        </Link>
+      </form>
+    </AuthLayout>
+  );
+}
+
+export function CompleteRegistrationScreen({
+  pendingUser,
+  onLogin,
+}: {
+  pendingUser: User | null;
+  onLogin: (user: User) => void;
+}) {
+  const [name, setName] = useState(pendingUser?.name ?? "");
+  const [email, setEmail] = useState(pendingUser?.email ?? "");
+  const [phone, setPhone] = useState(pendingUser?.phone ?? "");
+  const [street, setStreet] = useState(pendingUser?.address.street ?? "");
+  const [suite, setSuite] = useState(pendingUser?.address.suite ?? "");
+  const [city, setCity] = useState(pendingUser?.address.city ?? "");
+  const [zipcode, setZipcode] = useState(pendingUser?.address.zipcode ?? "");
+  const [companyName, setCompanyName] = useState(
+    pendingUser?.company.name ?? "",
+  );
+  const [catchPhrase, setCatchPhrase] = useState(
+    pendingUser?.company.catchPhrase ?? "",
+  );
+  const [business, setBusiness] = useState(pendingUser?.company.bs ?? "");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (
+    event,
+  ) => {
+    event.preventDefault();
+    setError("");
+
+    if (!pendingUser) {
+      setError("Please start registration again.");
+      return;
+    }
+
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !street.trim() ||
+      !suite.trim() ||
+      !city.trim() ||
+      !zipcode.trim() ||
+      !companyName.trim()
+    ) {
+      setError("Please fill in all required details.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const completedUser = await completeUserDetails(pendingUser.id, {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: {
+          street: street.trim(),
+          suite: suite.trim(),
+          city: city.trim(),
+          zipcode: zipcode.trim(),
+        },
+        company: {
+          name: companyName.trim(),
+          catchPhrase: catchPhrase.trim(),
+          bs: business.trim(),
+        },
+      });
+
+      onLogin(completedUser);
+    } catch {
+      setError("Could not save your details. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="EntryBase"
+      subtitle="Finish your profile so the workspace can show your details."
+    >
+      <form className="auth-card details-card" onSubmit={handleSubmit}>
+        <div>
+          <p className="eyebrow">Almost there</p>
+          <h1>Complete details</h1>
+          <p className="muted">Add the required profile information.</p>
+        </div>
+        {!pendingUser && (
+          <AuthError message="Please start registration again." />
+        )}
+        <label>
+          Full name
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label>
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </label>
+        <label>
+          Phone
+          <input
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+          />
+        </label>
+        <div className="form-grid">
+          <label>
+            Street
+            <input
+              value={street}
+              onChange={(event) => setStreet(event.target.value)}
+            />
+          </label>
+          <label>
+            Suite
+            <input
+              value={suite}
+              onChange={(event) => setSuite(event.target.value)}
+            />
+          </label>
+          <label>
+            City
+            <input
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+            />
+          </label>
+          <label>
+            Zipcode
+            <input
+              value={zipcode}
+              onChange={(event) => setZipcode(event.target.value)}
+            />
+          </label>
+        </div>
+        <label>
+          Company name
+          <input
+            value={companyName}
+            onChange={(event) => setCompanyName(event.target.value)}
+          />
+        </label>
+        <label>
+          Company catchphrase
+          <input
+            value={catchPhrase}
+            onChange={(event) => setCatchPhrase(event.target.value)}
+          />
+        </label>
+        <label>
+          Company business
+          <input
+            value={business}
+            onChange={(event) => setBusiness(event.target.value)}
+          />
+        </label>
+        {error && <AuthError message={error} />}
+        <button
+          type="submit"
+          className="button primary"
+          disabled={isSubmitting || !pendingUser}
+        >
+          {isSubmitting ? "Saving..." : "Finish Registration"}
+        </button>
+        <Link to="/register" className="text-button">
+          Back to register
         </Link>
       </form>
     </AuthLayout>
