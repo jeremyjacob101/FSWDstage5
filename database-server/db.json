@@ -41046,6 +41046,5 @@
       "completed": false,
       "id": "JlbzoWWtUCs"
     }
-  ],
-  "$schema": "./node_modules/json-server/schema.json"
+  ]
 }
