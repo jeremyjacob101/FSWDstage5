@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Album, Photo, User } from "../data/types";
-import { Button, EmptyState, ScreenHeader } from "../components/ui";
+import {
+  Button,
+  EmptyState,
+  ScreenHeader,
+  SearchInput,
+  Toolbar,
+} from "../components/ui";
 import {
   createPhoto,
   deletePhoto,
@@ -20,17 +26,28 @@ export function PhotosPage({
 }) {
   const navigate = useNavigate();
   const { albumId } = useParams();
+  const [search, setSearch] = useState("");
   const [newTitle, setNewTitle] = useState("");
+  const [editingPhotoId, setEditingPhotoId] = useState<number | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [page, setPage] = useState(1);
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingPhotoIds, setPendingPhotoIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const selectedAlbumId = albumId ? Number(albumId) : albums[0]?.id;
   const album = albums.find(
     (currentAlbum) => currentAlbum.id === selectedAlbumId,
   );
+  const visiblePhotos = photos.filter((photo) => {
+    const query = search.toLowerCase().trim();
+    return (
+      String(photo.id).includes(query) ||
+      photo.title.toLowerCase().includes(query)
+    );
+  });
 
   useEffect(() => {
     if (!album) {
@@ -161,20 +178,82 @@ export function PhotosPage({
     }
   };
 
+  const startEditingPhoto = (photo: Photo) => {
+    setEditingPhotoId(photo.id);
+    setDraftTitle(photo.title);
+    setError("");
+  };
+
+  const cancelEditingPhoto = () => {
+    setEditingPhotoId(null);
+    setDraftTitle("");
+  };
+
+  const savePhotoTitle = async (photo: Photo) => {
+    const title = draftTitle.trim();
+    if (!title || pendingPhotoIds.includes(photo.id)) return;
+
+    try {
+      setError("");
+      setPendingPhotoIds((currentIds) => [...currentIds, photo.id]);
+      const updatedPhoto = await updatePhoto(photo.id, { title });
+
+      setPhotos((currentPhotos) =>
+        currentPhotos.map((currentPhoto) =>
+          currentPhoto.id === photo.id ? updatedPhoto : currentPhoto,
+        ),
+      );
+      cancelEditingPhoto();
+    } catch {
+      setError("Could not update the photo. Please try again.");
+    } finally {
+      setPendingPhotoIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== photo.id),
+      );
+    }
+  };
+
+  const removePhoto = async (photo: Photo) => {
+    if (pendingPhotoIds.includes(photo.id)) return;
+
+    try {
+      setError("");
+      setPendingPhotoIds((currentIds) => [...currentIds, photo.id]);
+      await deletePhoto(photo.id);
+      setPhotos((currentPhotos) =>
+        currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id),
+      );
+      if (editingPhotoId === photo.id) {
+        cancelEditingPhoto();
+      }
+    } catch {
+      setError("Could not delete the photo. Please try again.");
+    } finally {
+      setPendingPhotoIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== photo.id),
+      );
+    }
+  };
+
   return (
     <section className="screen-stack">
       <ScreenHeader
         title={`Photos for ${album.title}`}
-        description={`Album #${album.id} with progressive loading.`}
+        description={`Album #${album.id}`}
       />
-      <div className="toolbar">
+      <Toolbar>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search photo id or title"
+        />
         <Button
           variant="secondary"
           onClick={() => navigate(`/users/${activeUser.id}/albums`)}
         >
           Back to Albums
         </Button>
-      </div>
+      </Toolbar>
       <form className="inline-form" onSubmit={addPhoto}>
         <input
           value={newTitle}
@@ -188,68 +267,73 @@ export function PhotosPage({
         {isLoading && !photos.length && (
           <EmptyState message="Loading photos..." />
         )}
-        {photos.map((photo) => (
-          <article className="photo-card" key={photo.id}>
-            <img
-              src={photo.url}
-              alt={photo.title}
-              loading="lazy"
-              decoding="async"
-            />
-            <div>
-              <span className="id-badge">#{photo.id}</span>
-              <h3>{photo.title}</h3>
-              <div className="row-actions">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    const title = window
-                      .prompt("Update photo title", photo.title)
-                      ?.trim();
-                    if (!title) return;
-                    void updatePhoto(photo.id, { title })
-                      .then((updatedPhoto) => {
-                        setPhotos((currentPhotos) =>
-                          currentPhotos.map((currentPhoto) =>
-                            currentPhoto.id === photo.id
-                              ? updatedPhoto
-                              : currentPhoto,
-                          ),
-                        );
-                      })
-                      .catch(() => {
-                        setError(
-                          "Could not update the photo. Please try again.",
-                        );
-                      });
-                  }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    void deletePhoto(photo.id)
-                      .then(() => {
-                        setPhotos((currentPhotos) =>
-                          currentPhotos.filter(
-                            (currentPhoto) => currentPhoto.id !== photo.id,
-                          ),
-                        );
-                      })
-                      .catch(() => {
-                        setError(
-                          "Could not delete the photo. Please try again.",
-                        );
-                      });
-                  }}
-                >
-                  Delete
-                </Button>
+        {visiblePhotos.map((photo) => {
+          const isPending = pendingPhotoIds.includes(photo.id);
+          const isEditing = editingPhotoId === photo.id;
+
+          return (
+            <article className="photo-card" key={photo.id}>
+              <img
+                src={photo.url}
+                alt={photo.title}
+                loading="lazy"
+                decoding="async"
+              />
+              <div>
+                <span className="id-badge">#{photo.id}</span>
+                {isEditing ? (
+                  <input
+                    className="photo-edit-input"
+                    value={draftTitle}
+                    onChange={(event) => setDraftTitle(event.target.value)}
+                    disabled={isPending}
+                    aria-label={`Photo ${photo.id} title`}
+                  />
+                ) : (
+                  <h3>{photo.title}</h3>
+                )}
+                <div className="row-actions">
+                  {isEditing ? (
+                    <>
+                      <Button
+                        variant="secondary"
+                        onClick={() => void savePhotoTitle(photo)}
+                        disabled={isPending || !draftTitle.trim()}
+                      >
+                        {isPending ? "Saving..." : "Save"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={cancelEditingPhoto}
+                        disabled={isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => startEditingPhoto(photo)}
+                      disabled={isPending}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                  <Button
+                    variant="danger"
+                    onClick={() => void removePhoto(photo)}
+                    disabled={isPending}
+                  >
+                    {isPending ? "Working..." : "Delete"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
+        {!isLoading && !visiblePhotos.length && (
+          <EmptyState message="No photos match that search." />
+        )}
       </div>
       {isLoading && photos.length > 0 && (
         <EmptyState message="Loading more photos..." />
