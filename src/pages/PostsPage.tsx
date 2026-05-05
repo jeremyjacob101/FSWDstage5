@@ -491,7 +491,9 @@ export function PostsPage({
                                 <Button
                                   variant="secondary"
                                   onClick={() => void saveComment(comment)}
-                                  disabled={isPending || !draftCommentBody.trim()}
+                                  disabled={
+                                    isPending || !draftCommentBody.trim()
+                                  }
                                 >
                                   {isPending ? "Saving..." : "Save"}
                                 </Button>
