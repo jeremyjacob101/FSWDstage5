@@ -249,6 +249,10 @@
   font-size: 0.86rem;
 }
 
+.comment-edit-input {
+  min-height: 92px;
+}
+
 .album-card {
   display: grid;
   gap: 14px;
