@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import type { Comment, Post, User } from "../data/types";
+import type { Comment, Post } from "../data/types";
+import { useCachedUserPosts } from "../hooks/useCachedUserResources";
+import { useUser } from "../context/userContext";
 import {
   Button,
   EmptyState,
@@ -17,17 +19,9 @@ import {
   updatePost,
 } from "../api/api";
 
-export function PostsPage({
-  activeUser,
-  posts,
-  setPosts,
-  isLoading,
-}: {
-  activeUser: User;
-  posts: Post[];
-  setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
-  isLoading: boolean;
-}) {
+export function PostsPage() {
+  const { posts, setPosts, isLoading, loadError } = useCachedUserPosts();
+  const { user: activeUser } = useUser();
   const [search, setSearch] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [newPostTitle, setNewPostTitle] = useState("");
@@ -87,6 +81,10 @@ export function PostsPage({
       isCurrent = false;
     };
   }, [selectedPost]);
+
+  if (!activeUser) {
+    return null;
+  }
 
   const visiblePosts = posts.filter((post) => {
     const query = search.toLowerCase().trim();
@@ -325,6 +323,11 @@ export function PostsPage({
           {isCreatingPost ? "Adding..." : "New Post"}
         </Button>
       </form>
+      {loadError && (
+        <p className="error-state">
+          Could not load posts. Please make sure JSON-Server is running.
+        </p>
+      )}
       {error && <p className="error-state">{error}</p>}
       <div className="split-layout">
         <div className="post-list">

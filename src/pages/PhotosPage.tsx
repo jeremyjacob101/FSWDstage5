@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Album, Photo, User } from "../data/types";
+import type { Photo } from "../data/types";
+import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
+import { useUser } from "../context/userContext";
 import {
   Button,
   EmptyState,
@@ -42,13 +44,9 @@ function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
   return choices;
 }
 
-export function PhotosPage({
-  activeUser,
-  albums,
-}: {
-  activeUser: User;
-  albums: Album[];
-}) {
+export function PhotosPage() {
+  const { albums, loadError } = useCachedUserAlbums();
+  const { user: activeUser } = useUser();
   const navigate = useNavigate();
   const { albumId } = useParams();
   const [search, setSearch] = useState("");
@@ -170,6 +168,10 @@ export function PhotosPage({
       observer.disconnect();
     };
   }, [hasMorePhotos, loadMorePhotos]);
+
+  if (!activeUser) {
+    return null;
+  }
 
   if (!album) {
     return (
@@ -349,6 +351,11 @@ export function PhotosPage({
           ))}
         </div>
       </section>
+      {loadError && (
+        <p className="error-state">
+          Could not load albums list. Please make sure JSON-Server is running.
+        </p>
+      )}
       {error && <p className="error-state">{error}</p>}
       <div className="photo-grid">
         {isLoading && !photos.length && (

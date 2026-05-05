@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Album, User } from "../data/types";
+import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
+import { useUser } from "../context/userContext";
 import {
   Button,
   EmptyState,
@@ -10,21 +11,18 @@ import {
 } from "../components/ui";
 import { createAlbum } from "../api/api";
 
-export function AlbumsPage({
-  activeUser,
-  albums,
-  setAlbums,
-  isLoading,
-}: {
-  activeUser: User;
-  albums: Album[];
-  setAlbums: React.Dispatch<React.SetStateAction<Album[]>>;
-  isLoading: boolean;
-}) {
+export function AlbumsPage() {
+  const { albums, setAlbums, isLoading, loadError } = useCachedUserAlbums();
+  const { user: activeUser } = useUser();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState("");
+
+  if (!activeUser) {
+    return null;
+  }
+
   const visibleAlbums = albums.filter((album) => {
     const query = search.toLowerCase().trim();
     return (
@@ -69,6 +67,11 @@ export function AlbumsPage({
         />
         <Button type="submit">New Album</Button>
       </form>
+      {loadError && (
+        <p className="error-state">
+          Could not load albums. Please make sure JSON-Server is running.
+        </p>
+      )}
       {error && <p className="error-state">{error}</p>}
       <div className="album-grid">
         {isLoading && <EmptyState message="Loading albums..." />}

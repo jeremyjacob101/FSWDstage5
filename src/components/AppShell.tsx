@@ -1,43 +1,41 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { User } from "../data/types";
+import { useUser } from "../context/userContext";
 import { Button } from "./ui";
 
-export function AppShell({
-  activeUser,
-  onLogout,
-  notice,
-}: {
-  activeUser: User;
-  onLogout: () => void;
-  notice?: string;
-}) {
+export function AppShell({ notice }: { notice?: string }) {
+  const { user, logout } = useUser();
   const [infoOpen, setInfoOpen] = useState(false);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="app-shell">
       <NavBar
-        activeUser={activeUser}
+        user={user}
         onInfo={() => setInfoOpen(true)}
-        onLogout={onLogout}
+        onLogout={logout}
       />
       <main className="page-content">
         {notice && <p className="error-state page-notice">{notice}</p>}
         <Outlet />
       </main>
       {infoOpen && (
-        <InfoModal user={activeUser} onClose={() => setInfoOpen(false)} />
+        <InfoModal user={user} onClose={() => setInfoOpen(false)} />
       )}
     </div>
   );
 }
 
 function NavBar({
-  activeUser,
+  user,
   onInfo,
   onLogout,
 }: {
-  activeUser: User;
+  user: User;
   onInfo: () => void;
   onLogout: () => void;
 }) {
@@ -51,21 +49,21 @@ function NavBar({
           Info
         </button>
         <NavLink
-          to={`/users/${activeUser.id}/todos`}
+          to={`/users/${user.id}/todos`}
           className={({ isActive }) => (isActive ? "active" : undefined)}
           end
         >
           Todos
         </NavLink>
         <NavLink
-          to={`/users/${activeUser.id}/posts`}
+          to={`/users/${user.id}/posts`}
           className={({ isActive }) => (isActive ? "active" : undefined)}
           end
         >
           Posts
         </NavLink>
         <NavLink
-          to={`/users/${activeUser.id}/albums`}
+          to={`/users/${user.id}/albums`}
           className={({ isActive }) => (isActive ? "active" : undefined)}
           end
         >
@@ -76,7 +74,7 @@ function NavBar({
         <button type="button" onClick={onLogout}>
           Logout
         </button>
-        <span className="user-pill nav-user">{activeUser.name}</span>
+        <span className="user-pill nav-user">{user.name}</span>
       </div>
     </nav>
   );

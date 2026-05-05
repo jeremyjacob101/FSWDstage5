@@ -1,5 +1,7 @@
 import { useState } from "react";
-import type { Todo, User } from "../data/types";
+import type { Todo } from "../data/types";
+import { useCachedUserTodos } from "../hooks/useCachedUserResources";
+import { useUser } from "../context/userContext";
 import {
   Button,
   EmptyState,
@@ -9,17 +11,9 @@ import {
 } from "../components/ui";
 import { createTodo, deleteTodo, updateTodo } from "../api/api";
 
-export function TodosPage({
-  activeUser,
-  todos,
-  setTodos,
-  isLoading,
-}: {
-  activeUser: User;
-  todos: Todo[];
-  setTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  isLoading: boolean;
-}) {
+export function TodosPage() {
+  const { todos, setTodos, isLoading, loadError } = useCachedUserTodos();
+  const { user: activeUser } = useUser();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"id" | "title" | "completed">("id");
   const [newTitle, setNewTitle] = useState("");
@@ -28,6 +22,10 @@ export function TodosPage({
   const [pendingTodoIds, setPendingTodoIds] = useState<number[]>([]);
   const [isCreatingTodo, setIsCreatingTodo] = useState(false);
   const [error, setError] = useState("");
+
+  if (!activeUser) {
+    return null;
+  }
 
   const query = search.toLowerCase().trim();
   const visibleTodos = [...todos]
@@ -192,6 +190,11 @@ export function TodosPage({
           {isCreatingTodo ? "Adding..." : "New Todo"}
         </Button>
       </form>
+      {loadError && (
+        <p className="error-state">
+          Could not load todos. Please make sure JSON-Server is running.
+        </p>
+      )}
       {error && <p className="error-state">{error}</p>}
       <div className="list-grid">
         {isLoading && <EmptyState message="Loading todos..." />}

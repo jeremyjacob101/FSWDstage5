@@ -10,6 +10,7 @@ import {
 } from "../api/api";
 import "./Auth.css";
 
+
 export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +32,8 @@ export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
 
     try {
       setIsSubmitting(true);
+
+      //What does user return? 
       const user = await authenticateUser({
         username: cleanUsername,
         password,
@@ -41,7 +44,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
         return;
       }
 
-      setError("We could not sign you in with those credentials.");
+      setError("Incorrect username or password.");
     } catch {
       setError(
         "Could not reach the local server. Please start JSON-Server and try again.",
