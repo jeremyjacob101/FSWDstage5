@@ -35,7 +35,6 @@ export type NewComment = {
   name: string;
   email: string;
   body: string;
-  ownedByCurrentUser?: boolean;
 };
 
 export type CommentUpdates = {

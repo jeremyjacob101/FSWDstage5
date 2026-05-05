@@ -144,7 +144,7 @@ Delete a comment:
 - Body: none
 - Response: 204 No Content
 
-> Note: Ownership is handled client-side. When a comment is added, the client sets `ownedByCurrentUser: true` locally. Edit and delete controls are only shown when that flag is true.
+> Note: Comment ownership is handled client-side by comparing `comment.email` with the active user's email. Edit and delete controls are only shown when those emails match.
 
 ## Albums
 
