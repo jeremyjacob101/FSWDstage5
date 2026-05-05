@@ -15,8 +15,8 @@ export type NewTodo = {
 };
 
 export type TodoUpdates = {
-  title?: string;
-  completed?: boolean;
+  title: string;
+  completed: boolean;
 };
 
 export type NewPost = {
@@ -26,8 +26,8 @@ export type NewPost = {
 };
 
 export type PostUpdates = {
-  title?: string;
-  body?: string;
+  title: string;
+  body: string;
 };
 
 export type NewComment = {
@@ -54,4 +54,5 @@ export type NewPhoto = {
 
 export type PhotoUpdates = {
   title: string;
+  url: string;
 };

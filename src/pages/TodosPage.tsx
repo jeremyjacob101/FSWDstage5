@@ -90,7 +90,10 @@ export function TodosPage({
     try {
       setError("");
       setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
-      const updatedTodo = await updateTodo(todo.id, { title });
+      const updatedTodo = await updateTodo(todo.id, {
+        title,
+        completed: todo.completed,
+      });
 
       setTodos((currentTodos) =>
         currentTodos.map((currentTodo) =>
@@ -114,6 +117,7 @@ export function TodosPage({
       setError("");
       setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       const updatedTodo = await updateTodo(todo.id, {
+        title: todo.title,
         completed: !todo.completed,
       });
 
