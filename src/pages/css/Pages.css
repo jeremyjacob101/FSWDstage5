@@ -269,7 +269,7 @@
   border-radius: 18px;
 }
 
-.photo-card img {
+.photo-card > img {
   display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -286,6 +286,74 @@
   width: 100%;
   padding: 9px 11px;
   font-weight: 700;
+}
+
+.photo-picker-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+}
+
+.photo-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.photo-picker-header h3,
+.photo-picker-header h4 {
+  margin: 0;
+}
+
+.photo-picker-header.compact h4 {
+  font-size: 0.9rem;
+}
+
+.photo-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.photo-choice-grid.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.photo-choice {
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.photo-choice:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.photo-choice.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.photo-choice img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.photo-edit-stack {
+  display: grid;
+  gap: 10px;
 }
 
 .empty-state {
