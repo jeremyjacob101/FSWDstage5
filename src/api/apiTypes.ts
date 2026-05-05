@@ -19,6 +19,12 @@ export type TodoUpdates = {
   completed?: boolean;
 };
 
+export type NewPost = {
+  userId: number;
+  title: string;
+  body: string;
+};
+
 export type PostUpdates = {
   title?: string;
   body?: string;

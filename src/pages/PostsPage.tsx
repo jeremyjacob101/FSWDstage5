@@ -9,6 +9,7 @@ import {
 } from "../components/ui";
 import {
   createComment,
+  createPost,
   deleteComment,
   deletePost,
   getCommentsForPost,
@@ -29,9 +30,16 @@ export function PostsPage({
 }) {
   const [search, setSearch] = useState("");
   const [showComments, setShowComments] = useState(false);
+  const [newPostTitle, setNewPostTitle] = useState("");
+  const [newPostBody, setNewPostBody] = useState("");
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [draftPostTitle, setDraftPostTitle] = useState("");
+  const [draftPostBody, setDraftPostBody] = useState("");
+  const [pendingPostIds, setPendingPostIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const [selectedPostId, setSelectedPostId] = useState<number | undefined>(
     posts[0]?.id,
@@ -39,6 +47,8 @@ export function PostsPage({
 
   const selectedPost =
     posts.find((post) => post.id === selectedPostId) ?? posts[0];
+  const isEditingSelectedPost =
+    selectedPost !== undefined && editingPostId === selectedPost.id;
 
   useEffect(() => {
     if (!selectedPost) {
@@ -83,6 +93,33 @@ export function PostsPage({
     );
   });
 
+  const addPost: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
+    event.preventDefault();
+    const title = newPostTitle.trim();
+    const body = newPostBody.trim();
+    if (!title || !body || isCreatingPost) return;
+
+    try {
+      setError("");
+      setIsCreatingPost(true);
+      const post = await createPost({
+        userId: activeUser.id,
+        title,
+        body,
+      });
+
+      setPosts((currentPosts) => [post, ...currentPosts]);
+      setSelectedPostId(post.id);
+      setNewPostTitle("");
+      setNewPostBody("");
+      setShowComments(false);
+    } catch {
+      setError("Could not create the post. Please try again.");
+    } finally {
+      setIsCreatingPost(false);
+    }
+  };
+
   const addComment: React.SubmitEventHandler<HTMLFormElement> = async (
     event,
   ) => {
@@ -108,27 +145,51 @@ export function PostsPage({
     }
   };
 
-  const editPost = async (post: Post) => {
-    const title = window.prompt("Update post title", post.title)?.trim();
-    if (!title) return;
+  const startEditingPost = (post: Post) => {
+    setSelectedPostId(post.id);
+    setEditingPostId(post.id);
+    setDraftPostTitle(post.title);
+    setDraftPostBody(post.body);
+    setError("");
+  };
+
+  const cancelEditingPost = () => {
+    setEditingPostId(null);
+    setDraftPostTitle("");
+    setDraftPostBody("");
+  };
+
+  const savePost = async (post: Post) => {
+    const title = draftPostTitle.trim();
+    const body = draftPostBody.trim();
+    if (!title || !body || pendingPostIds.includes(post.id)) return;
 
     try {
       setError("");
-      const updatedPost = await updatePost(post.id, { title });
+      setPendingPostIds((currentIds) => [...currentIds, post.id]);
+      const updatedPost = await updatePost(post.id, { title, body });
 
       setPosts((currentPosts) =>
         currentPosts.map((currentPost) =>
           currentPost.id === post.id ? updatedPost : currentPost,
         ),
       );
+      cancelEditingPost();
     } catch {
       setError("Could not update the post. Please try again.");
+    } finally {
+      setPendingPostIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== post.id),
+      );
     }
   };
 
   const removePost = async (post: Post) => {
+    if (pendingPostIds.includes(post.id)) return;
+
     try {
       setError("");
+      setPendingPostIds((currentIds) => [...currentIds, post.id]);
       await deletePost(post.id);
       setPosts((currentPosts) => {
         const nextPosts = currentPosts.filter(
@@ -137,8 +198,15 @@ export function PostsPage({
         setSelectedPostId(nextPosts[0]?.id);
         return nextPosts;
       });
+      if (editingPostId === post.id) {
+        cancelEditingPost();
+      }
     } catch {
       setError("Could not delete the post. Please try again.");
+    } finally {
+      setPendingPostIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== post.id),
+      );
     }
   };
 
@@ -159,40 +227,76 @@ export function PostsPage({
           placeholder="Search post id or title"
         />
       </Toolbar>
+      <form className="inline-form post-compose-form" onSubmit={addPost}>
+        <input
+          value={newPostTitle}
+          onChange={(event) => setNewPostTitle(event.target.value)}
+          placeholder="New post title"
+          disabled={isCreatingPost}
+        />
+        <textarea
+          value={newPostBody}
+          onChange={(event) => setNewPostBody(event.target.value)}
+          placeholder="New post body"
+          disabled={isCreatingPost}
+          rows={3}
+        />
+        <Button
+          type="submit"
+          disabled={
+            isCreatingPost || !newPostTitle.trim() || !newPostBody.trim()
+          }
+        >
+          {isCreatingPost ? "Adding..." : "New Post"}
+        </Button>
+      </form>
       {error && <p className="error-state">{error}</p>}
       <div className="split-layout">
         <div className="post-list">
           {isLoading && <EmptyState message="Loading posts..." />}
-          {visiblePosts.map((post) => (
-            <article
-              className={
-                post.id === selectedPost?.id
-                  ? "post-card selected"
-                  : "post-card"
-              }
-              key={post.id}
-            >
-              <span className="id-badge">#{post.id}</span>
-              <h3>{post.title}</h3>
-              <div className="row-actions">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setSelectedPostId(post.id);
-                    setShowComments(false);
-                  }}
-                >
-                  View
-                </Button>
-                <Button variant="secondary" onClick={() => editPost(post)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => void removePost(post)}>
-                  Delete
-                </Button>
-              </div>
-            </article>
-          ))}
+          {visiblePosts.map((post) => {
+            const isPending = pendingPostIds.includes(post.id);
+
+            return (
+              <article
+                className={
+                  post.id === selectedPost?.id
+                    ? "post-card selected"
+                    : "post-card"
+                }
+                key={post.id}
+              >
+                <span className="id-badge">#{post.id}</span>
+                <h3>{post.title}</h3>
+                <div className="row-actions">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setSelectedPostId(post.id);
+                      setShowComments(false);
+                    }}
+                    disabled={isPending}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => startEditingPost(post)}
+                    disabled={isPending}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => void removePost(post)}
+                    disabled={isPending}
+                  >
+                    {isPending ? "Working..." : "Delete"}
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
           {!isLoading && !visiblePosts.length && (
             <EmptyState message="No posts match that search." />
           )}
@@ -201,14 +305,75 @@ export function PostsPage({
           {selectedPost ? (
             <>
               <span className="id-badge">Selected #{selectedPost.id}</span>
-              <h2>{selectedPost.title}</h2>
-              <p>{selectedPost.body}</p>
-              <Button
-                variant="secondary"
-                onClick={() => setShowComments((value) => !value)}
-              >
-                {showComments ? "Hide comments" : "Show comments"}
-              </Button>
+              {isEditingSelectedPost ? (
+                <form
+                  className="post-edit-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void savePost(selectedPost);
+                  }}
+                >
+                  <label>
+                    Title
+                    <input
+                      value={draftPostTitle}
+                      onChange={(event) =>
+                        setDraftPostTitle(event.target.value)
+                      }
+                      disabled={pendingPostIds.includes(selectedPost.id)}
+                    />
+                  </label>
+                  <label>
+                    Body
+                    <textarea
+                      value={draftPostBody}
+                      onChange={(event) => setDraftPostBody(event.target.value)}
+                      disabled={pendingPostIds.includes(selectedPost.id)}
+                      rows={7}
+                    />
+                  </label>
+                  <div className="row-actions">
+                    <Button
+                      type="submit"
+                      disabled={
+                        pendingPostIds.includes(selectedPost.id) ||
+                        !draftPostTitle.trim() ||
+                        !draftPostBody.trim()
+                      }
+                    >
+                      {pendingPostIds.includes(selectedPost.id)
+                        ? "Saving..."
+                        : "Save"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={cancelEditingPost}
+                      disabled={pendingPostIds.includes(selectedPost.id)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <h2>{selectedPost.title}</h2>
+                  <p>{selectedPost.body}</p>
+                  <div className="row-actions">
+                    <Button
+                      variant="secondary"
+                      onClick={() => startEditingPost(selectedPost)}
+                    >
+                      Edit Post
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowComments((value) => !value)}
+                    >
+                      {showComments ? "Hide comments" : "Show comments"}
+                    </Button>
+                  </div>
+                </>
+              )}
               {showComments && (
                 <div className="comments-stack">
                   <form className="inline-form" onSubmit={addComment}>

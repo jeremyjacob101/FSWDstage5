@@ -126,6 +126,14 @@
   flex: 1 1 240px;
 }
 
+.post-compose-form {
+  align-items: stretch;
+}
+
+.post-compose-form textarea {
+  flex: 2 1 320px;
+}
+
 .search-input,
 .select-label {
   display: grid;
@@ -217,6 +225,11 @@
   gap: 16px;
   padding: 24px;
   border-radius: 18px;
+}
+
+.post-edit-form {
+  display: grid;
+  gap: 14px;
 }
 
 .detail-panel p,

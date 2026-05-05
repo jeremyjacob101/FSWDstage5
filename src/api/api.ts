@@ -5,6 +5,7 @@ import type {
   NewAlbum,
   NewComment,
   NewPhoto,
+  NewPost,
   NewTodo,
   NewUserDetails,
   PhotoUpdates,
@@ -99,10 +100,7 @@ export async function updateTodo(
   todoId: number,
   updates: TodoUpdates,
 ): Promise<Todo> {
-  return request<Todo>(
-    `/todos/${todoId}`,
-    writeOptions("PATCH", updates),
-  );
+  return request<Todo>(`/todos/${todoId}`, writeOptions("PATCH", updates));
 }
 
 export async function deleteTodo(todoId: number): Promise<void> {
@@ -113,14 +111,20 @@ export async function getPostsForUser(userId: number): Promise<Post[]> {
   return request<Post[]>(`/posts?userId=${userId}`);
 }
 
+export async function createPost(post: NewPost): Promise<Post> {
+  const currentPosts = await request<Post[]>("/posts");
+  const createdPost = await request<Post>(
+    "/posts",
+    writeOptions("POST", { ...post, id: getNextNumericId(currentPosts) }),
+  );
+  return createdPost;
+}
+
 export async function updatePost(
   postId: number,
   updates: PostUpdates,
 ): Promise<Post> {
-  return request<Post>(
-    `/posts/${postId}`,
-    writeOptions("PATCH", updates),
-  );
+  return request<Post>(`/posts/${postId}`, writeOptions("PATCH", updates));
 }
 
 export async function deletePost(postId: number): Promise<void> {
@@ -132,10 +136,7 @@ export async function getCommentsForPost(postId: number): Promise<Comment[]> {
 }
 
 export async function createComment(comment: NewComment): Promise<Comment> {
-  return request<Comment>(
-    "/comments",
-    writeOptions("POST", comment),
-  );
+  return request<Comment>("/comments", writeOptions("POST", comment));
 }
 
 export async function updateComment(
@@ -157,10 +158,7 @@ export async function getAlbumsForUser(userId: number): Promise<Album[]> {
 }
 
 export async function createAlbum(album: NewAlbum): Promise<Album> {
-  return request<Album>(
-    "/albums",
-    writeOptions("POST", album),
-  );
+  return request<Album>("/albums", writeOptions("POST", album));
 }
 
 export async function getPhotosForAlbum(
@@ -174,20 +172,14 @@ export async function getPhotosForAlbum(
 }
 
 export async function createPhoto(photo: NewPhoto): Promise<Photo> {
-  return request<Photo>(
-    "/photos",
-    writeOptions("POST", photo),
-  );
+  return request<Photo>("/photos", writeOptions("POST", photo));
 }
 
 export async function updatePhoto(
   photoId: number,
   updates: PhotoUpdates,
 ): Promise<Photo> {
-  return request<Photo>(
-    `/photos/${photoId}`,
-    writeOptions("PATCH", updates),
-  );
+  return request<Photo>(`/photos/${photoId}`, writeOptions("PATCH", updates));
 }
 
 export async function deletePhoto(photoId: number): Promise<void> {
