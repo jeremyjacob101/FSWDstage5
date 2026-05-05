@@ -175,6 +175,12 @@
   accent-color: var(--accent);
 }
 
+.check-label .todo-edit-input {
+  min-width: 220px;
+  padding: 9px 11px;
+  font-weight: 700;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;

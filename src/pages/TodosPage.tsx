@@ -23,6 +23,10 @@ export function TodosPage({
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"id" | "title" | "completed">("id");
   const [newTitle, setNewTitle] = useState("");
+  const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [pendingTodoIds, setPendingTodoIds] = useState<number[]>([]);
+  const [isCreatingTodo, setIsCreatingTodo] = useState(false);
   const [error, setError] = useState("");
 
   const query = search.toLowerCase().trim();
@@ -48,10 +52,11 @@ export function TodosPage({
   const addTodo: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     const title = newTitle.trim();
-    if (!title) return;
+    if (!title || isCreatingTodo) return;
 
     try {
       setError("");
+      setIsCreatingTodo(true);
       const todo = await createTodo({
         userId: activeUser.id,
         title,
@@ -62,15 +67,29 @@ export function TodosPage({
       setNewTitle("");
     } catch {
       setError("Could not create the todo. Please try again.");
+    } finally {
+      setIsCreatingTodo(false);
     }
   };
 
-  const editTodo = async (todo: Todo) => {
-    const title = window.prompt("Update todo title", todo.title)?.trim();
-    if (!title) return;
+  const startEditingTodo = (todo: Todo) => {
+    setEditingTodoId(todo.id);
+    setDraftTitle(todo.title);
+    setError("");
+  };
+
+  const cancelEditingTodo = () => {
+    setEditingTodoId(null);
+    setDraftTitle("");
+  };
+
+  const saveTodoTitle = async (todo: Todo) => {
+    const title = draftTitle.trim();
+    if (!title || pendingTodoIds.includes(todo.id)) return;
 
     try {
       setError("");
+      setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       const updatedTodo = await updateTodo(todo.id, { title });
 
       setTodos((currentTodos) =>
@@ -78,14 +97,22 @@ export function TodosPage({
           currentTodo.id === todo.id ? updatedTodo : currentTodo,
         ),
       );
+      cancelEditingTodo();
     } catch {
       setError("Could not update the todo. Please try again.");
+    } finally {
+      setPendingTodoIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== todo.id),
+      );
     }
   };
 
   const toggleTodo = async (todo: Todo) => {
+    if (pendingTodoIds.includes(todo.id)) return;
+
     try {
       setError("");
+      setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       const updatedTodo = await updateTodo(todo.id, {
         completed: !todo.completed,
       });
@@ -97,18 +124,32 @@ export function TodosPage({
       );
     } catch {
       setError("Could not update the todo status. Please try again.");
+    } finally {
+      setPendingTodoIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== todo.id),
+      );
     }
   };
 
   const removeTodo = async (todo: Todo) => {
+    if (pendingTodoIds.includes(todo.id)) return;
+
     try {
       setError("");
+      setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       await deleteTodo(todo.id);
       setTodos((currentTodos) =>
         currentTodos.filter((currentTodo) => currentTodo.id !== todo.id),
       );
+      if (editingTodoId === todo.id) {
+        cancelEditingTodo();
+      }
     } catch {
       setError("Could not delete the todo. Please try again.");
+    } finally {
+      setPendingTodoIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== todo.id),
+      );
     }
   };
 
@@ -141,33 +182,79 @@ export function TodosPage({
           value={newTitle}
           onChange={(event) => setNewTitle(event.target.value)}
           placeholder="New todo title"
+          disabled={isCreatingTodo}
         />
-        <Button type="submit">New Todo</Button>
+        <Button type="submit" disabled={isCreatingTodo}>
+          {isCreatingTodo ? "Adding..." : "New Todo"}
+        </Button>
       </form>
       {error && <p className="error-state">{error}</p>}
       <div className="list-grid">
         {isLoading && <EmptyState message="Loading todos..." />}
-        {visibleTodos.map((todo) => (
-          <article className="todo-row" key={todo.id}>
-            <span className="id-badge">#{todo.id}</span>
-            <label className="check-label">
-              <input
-                type="checkbox"
-                checked={todo.completed}
-                onChange={() => void toggleTodo(todo)}
-              />
-              <span>{todo.title}</span>
-            </label>
-            <div className="row-actions">
-              <Button variant="secondary" onClick={() => editTodo(todo)}>
-                Edit
-              </Button>
-              <Button variant="danger" onClick={() => void removeTodo(todo)}>
-                Delete
-              </Button>
-            </div>
-          </article>
-        ))}
+        {visibleTodos.map((todo) => {
+          const isPending = pendingTodoIds.includes(todo.id);
+          const isEditing = editingTodoId === todo.id;
+
+          return (
+            <article className="todo-row" key={todo.id}>
+              <span className="id-badge">#{todo.id}</span>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={todo.completed}
+                  onChange={() => void toggleTodo(todo)}
+                  disabled={isPending}
+                />
+                {isEditing ? (
+                  <input
+                    className="todo-edit-input"
+                    value={draftTitle}
+                    onChange={(event) => setDraftTitle(event.target.value)}
+                    disabled={isPending}
+                    aria-label={`Todo ${todo.id} title`}
+                  />
+                ) : (
+                  <span>{todo.title}</span>
+                )}
+              </label>
+              <div className="row-actions">
+                {isEditing ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void saveTodoTitle(todo)}
+                      disabled={isPending || !draftTitle.trim()}
+                    >
+                      {isPending ? "Saving..." : "Save"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={cancelEditingTodo}
+                      disabled={isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => startEditingTodo(todo)}
+                    disabled={isPending}
+                  >
+                    Edit
+                  </Button>
+                )}
+                <Button
+                  variant="danger"
+                  onClick={() => void removeTodo(todo)}
+                  disabled={isPending}
+                >
+                  {isPending ? "Working..." : "Delete"}
+                </Button>
+              </div>
+            </article>
+          );
+        })}
         {!isLoading && !visibleTodos.length && (
           <EmptyState message="No todos match that search." />
         )}

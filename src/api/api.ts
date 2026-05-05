@@ -1,5 +1,5 @@
 import type { Album, Comment, Photo, Post, Todo, User } from "../data/types";
-import { normalizeIds, normalizeUser, request, writeOptions } from "./helpers";
+import { getNextNumericId, request, writeOptions } from "./helpers";
 import type {
   CommentUpdates,
   NewAlbum,
@@ -19,7 +19,7 @@ export async function findUserByUsername(
     `/users?username=${encodeURIComponent(username)}`,
   );
 
-  return users[0] ? normalizeUser(users[0]) : null;
+  return users[0] ?? null;
 }
 
 export async function authenticateUser({
@@ -67,7 +67,7 @@ export async function createRegisteredUser({
     }),
   );
 
-  return normalizeUser(user);
+  return user;
 }
 
 export async function completeUserDetails(
@@ -79,28 +79,30 @@ export async function completeUserDetails(
     writeOptions("PATCH", details),
   );
 
-  return normalizeUser(user);
+  return user;
 }
 
 export async function getTodosForUser(userId: number): Promise<Todo[]> {
-  const todos = await request<Todo[]>(`/todos?userId=${userId}`);
-  return todos.map((todo) => normalizeIds(todo, "userId") as Todo);
+  return request<Todo[]>(`/todos?userId=${userId}`);
 }
 
 export async function createTodo(todo: NewTodo): Promise<Todo> {
-  const createdTodo = await request<Todo>("/todos", writeOptions("POST", todo));
-  return normalizeIds(createdTodo, "userId") as Todo;
+  const currentTodos = await request<Todo[]>("/todos");
+  const createdTodo = await request<Todo>(
+    "/todos",
+    writeOptions("POST", { ...todo, id: getNextNumericId(currentTodos) }),
+  );
+  return createdTodo;
 }
 
 export async function updateTodo(
   todoId: number,
   updates: TodoUpdates,
 ): Promise<Todo> {
-  const todo = await request<Todo>(
+  return request<Todo>(
     `/todos/${todoId}`,
     writeOptions("PATCH", updates),
   );
-  return normalizeIds(todo, "userId") as Todo;
 }
 
 export async function deleteTodo(todoId: number): Promise<void> {
@@ -108,19 +110,17 @@ export async function deleteTodo(todoId: number): Promise<void> {
 }
 
 export async function getPostsForUser(userId: number): Promise<Post[]> {
-  const posts = await request<Post[]>(`/posts?userId=${userId}`);
-  return posts.map((post) => normalizeIds(post, "userId") as Post);
+  return request<Post[]>(`/posts?userId=${userId}`);
 }
 
 export async function updatePost(
   postId: number,
   updates: PostUpdates,
 ): Promise<Post> {
-  const post = await request<Post>(
+  return request<Post>(
     `/posts/${postId}`,
     writeOptions("PATCH", updates),
   );
-  return normalizeIds(post, "userId") as Post;
 }
 
 export async function deletePost(postId: number): Promise<void> {
@@ -128,27 +128,24 @@ export async function deletePost(postId: number): Promise<void> {
 }
 
 export async function getCommentsForPost(postId: number): Promise<Comment[]> {
-  const comments = await request<Comment[]>(`/comments?postId=${postId}`);
-  return comments.map((comment) => normalizeIds(comment, "postId") as Comment);
+  return request<Comment[]>(`/comments?postId=${postId}`);
 }
 
 export async function createComment(comment: NewComment): Promise<Comment> {
-  const createdComment = await request<Comment>(
+  return request<Comment>(
     "/comments",
     writeOptions("POST", comment),
   );
-  return normalizeIds(createdComment, "postId") as Comment;
 }
 
 export async function updateComment(
   commentId: number,
   updates: CommentUpdates,
 ): Promise<Comment> {
-  const comment = await request<Comment>(
+  return request<Comment>(
     `/comments/${commentId}`,
     writeOptions("PATCH", updates),
   );
-  return normalizeIds(comment, "postId") as Comment;
 }
 
 export async function deleteComment(commentId: number): Promise<void> {
@@ -156,16 +153,14 @@ export async function deleteComment(commentId: number): Promise<void> {
 }
 
 export async function getAlbumsForUser(userId: number): Promise<Album[]> {
-  const albums = await request<Album[]>(`/albums?userId=${userId}`);
-  return albums.map((album) => normalizeIds(album, "userId") as Album);
+  return request<Album[]>(`/albums?userId=${userId}`);
 }
 
 export async function createAlbum(album: NewAlbum): Promise<Album> {
-  const createdAlbum = await request<Album>(
+  return request<Album>(
     "/albums",
     writeOptions("POST", album),
   );
-  return normalizeIds(createdAlbum, "userId") as Album;
 }
 
 export async function getPhotosForAlbum(
@@ -173,29 +168,26 @@ export async function getPhotosForAlbum(
   page = 1,
   limit = 12,
 ): Promise<Photo[]> {
-  const photos = await request<Photo[]>(
+  return request<Photo[]>(
     `/photos?albumId=${albumId}&_page=${page}&_limit=${limit}`,
   );
-  return photos.map((photo) => normalizeIds(photo, "albumId") as Photo);
 }
 
 export async function createPhoto(photo: NewPhoto): Promise<Photo> {
-  const createdPhoto = await request<Photo>(
+  return request<Photo>(
     "/photos",
     writeOptions("POST", photo),
   );
-  return normalizeIds(createdPhoto, "albumId") as Photo;
 }
 
 export async function updatePhoto(
   photoId: number,
   updates: PhotoUpdates,
 ): Promise<Photo> {
-  const photo = await request<Photo>(
+  return request<Photo>(
     `/photos/${photoId}`,
     writeOptions("PATCH", updates),
   );
-  return normalizeIds(photo, "albumId") as Photo;
 }
 
 export async function deletePhoto(photoId: number): Promise<void> {

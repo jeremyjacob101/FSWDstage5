@@ -1,23 +1,7 @@
-import type { User } from "../data/types";
-
 const API_BASE_URL = "http://localhost:1837";
 
-export function normalizeUser(user: User): User {
-  return {
-    ...user,
-    id: Number(user.id),
-  };
-}
-
-export function normalizeIds<T extends { id: number | string }>(
-  entity: T,
-  relationKey: keyof T,
-) {
-  return {
-    ...entity,
-    id: Number(entity.id),
-    [relationKey]: Number(entity[relationKey]),
-  };
+export function getNextNumericId(items: { id: number }[]) {
+  return Math.max(0, ...items.map((item) => item.id)) + 1;
 }
 
 export function writeOptions(
