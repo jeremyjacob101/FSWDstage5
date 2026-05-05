@@ -34,12 +34,15 @@ export function PostsPage({
   const [newPostBody, setNewPostBody] = useState("");
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [draftCommentBody, setDraftCommentBody] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [draftPostTitle, setDraftPostTitle] = useState("");
   const [draftPostBody, setDraftPostBody] = useState("");
   const [pendingPostIds, setPendingPostIds] = useState<number[]>([]);
+  const [pendingCommentIds, setPendingCommentIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const [selectedPostId, setSelectedPostId] = useState<number | undefined>(
     posts[0]?.id,
@@ -160,6 +163,75 @@ export function PostsPage({
     setEditingPostId(null);
     setDraftPostTitle("");
     setDraftPostBody("");
+  };
+
+  const startEditingComment = (comment: Comment) => {
+    if (!isOwnComment(comment)) return;
+
+    setEditingCommentId(comment.id);
+    setDraftCommentBody(comment.body);
+    setError("");
+  };
+
+  const cancelEditingComment = () => {
+    setEditingCommentId(null);
+    setDraftCommentBody("");
+  };
+
+  const saveComment = async (comment: Comment) => {
+    const body = draftCommentBody.trim();
+    if (
+      !body ||
+      !isOwnComment(comment) ||
+      pendingCommentIds.includes(comment.id)
+    ) {
+      return;
+    }
+
+    try {
+      setError("");
+      setPendingCommentIds((currentIds) => [...currentIds, comment.id]);
+      const updatedComment = await updateComment(comment.id, { body });
+
+      setComments((currentComments) =>
+        currentComments.map((currentComment) =>
+          currentComment.id === comment.id ? updatedComment : currentComment,
+        ),
+      );
+      cancelEditingComment();
+    } catch {
+      setError("Could not update the comment. Please try again.");
+    } finally {
+      setPendingCommentIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== comment.id),
+      );
+    }
+  };
+
+  const removeComment = async (comment: Comment) => {
+    if (!isOwnComment(comment) || pendingCommentIds.includes(comment.id)) {
+      return;
+    }
+
+    try {
+      setError("");
+      setPendingCommentIds((currentIds) => [...currentIds, comment.id]);
+      await deleteComment(comment.id);
+      setComments((currentComments) =>
+        currentComments.filter(
+          (currentComment) => currentComment.id !== comment.id,
+        ),
+      );
+      if (editingCommentId === comment.id) {
+        cancelEditingComment();
+      }
+    } catch {
+      setError("Could not delete the comment. Please try again.");
+    } finally {
+      setPendingCommentIds((currentIds) =>
+        currentIds.filter((currentId) => currentId !== comment.id),
+      );
+    }
   };
 
   const savePost = async (post: Post) => {
@@ -390,68 +462,68 @@ export function PostsPage({
                   {isLoadingComments && (
                     <EmptyState message="Loading comments..." />
                   )}
-                  {postComments.map((comment) => (
-                    <article className="comment-card" key={comment.id}>
-                      <strong>{comment.name}</strong>
-                      <span>{comment.email}</span>
-                      <p>{comment.body}</p>
-                      {isOwnComment(comment) && (
-                        <div className="row-actions">
-                          <Button
-                            variant="secondary"
-                            onClick={() => {
-                              if (!isOwnComment(comment)) return;
+                  {postComments.map((comment) => {
+                    const isEditingComment = editingCommentId === comment.id;
+                    const isPending = pendingCommentIds.includes(comment.id);
 
-                              const body = window
-                                .prompt("Update comment", comment.body)
-                                ?.trim();
-                              if (!body) return;
-                              void updateComment(comment.id, { body })
-                                .then((updatedComment) => {
-                                  setComments((currentComments) =>
-                                    currentComments.map((currentComment) =>
-                                      currentComment.id === comment.id
-                                        ? updatedComment
-                                        : currentComment,
-                                    ),
-                                  );
-                                })
-                                .catch(() => {
-                                  setError(
-                                    "Could not update the comment. Please try again.",
-                                  );
-                                });
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="danger"
-                            onClick={() => {
-                              if (!isOwnComment(comment)) return;
-
-                              void deleteComment(comment.id)
-                                .then(() => {
-                                  setComments((currentComments) =>
-                                    currentComments.filter(
-                                      (currentComment) =>
-                                        currentComment.id !== comment.id,
-                                    ),
-                                  );
-                                })
-                                .catch(() => {
-                                  setError(
-                                    "Could not delete the comment. Please try again.",
-                                  );
-                                });
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      )}
-                    </article>
-                  ))}
+                    return (
+                      <article className="comment-card" key={comment.id}>
+                        <strong>{comment.name}</strong>
+                        <span>{comment.email}</span>
+                        {isEditingComment ? (
+                          <textarea
+                            className="comment-edit-input"
+                            value={draftCommentBody}
+                            onChange={(event) =>
+                              setDraftCommentBody(event.target.value)
+                            }
+                            disabled={isPending}
+                            rows={4}
+                            aria-label={`Comment ${comment.id} body`}
+                          />
+                        ) : (
+                          <p>{comment.body}</p>
+                        )}
+                        {isOwnComment(comment) && (
+                          <div className="row-actions">
+                            {isEditingComment ? (
+                              <>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => void saveComment(comment)}
+                                  disabled={isPending || !draftCommentBody.trim()}
+                                >
+                                  {isPending ? "Saving..." : "Save"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  onClick={cancelEditingComment}
+                                  disabled={isPending}
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                variant="secondary"
+                                onClick={() => startEditingComment(comment)}
+                                disabled={isPending}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                            <Button
+                              variant="danger"
+                              onClick={() => void removeComment(comment)}
+                              disabled={isPending}
+                            >
+                              {isPending ? "Working..." : "Delete"}
+                            </Button>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </>
