@@ -93,6 +93,10 @@ export function PostsPage({
     );
   });
 
+  const isOwnComment = (comment: Comment) =>
+    comment.email.trim().toLowerCase() ===
+    activeUser.email.trim().toLowerCase();
+
   const addPost: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     const title = newPostTitle.trim();
@@ -134,7 +138,6 @@ export function PostsPage({
         name: activeUser.name,
         email: activeUser.email,
         body,
-        ownedByCurrentUser: true,
       });
 
       setComments((currentComments) => [...currentComments, comment]);
@@ -392,11 +395,13 @@ export function PostsPage({
                       <strong>{comment.name}</strong>
                       <span>{comment.email}</span>
                       <p>{comment.body}</p>
-                      {comment.ownedByCurrentUser && (
+                      {isOwnComment(comment) && (
                         <div className="row-actions">
                           <Button
                             variant="secondary"
                             onClick={() => {
+                              if (!isOwnComment(comment)) return;
+
                               const body = window
                                 .prompt("Update comment", comment.body)
                                 ?.trim();
@@ -423,6 +428,8 @@ export function PostsPage({
                           <Button
                             variant="danger"
                             onClick={() => {
+                              if (!isOwnComment(comment)) return;
+
                               void deleteComment(comment.id)
                                 .then(() => {
                                   setComments((currentComments) =>
