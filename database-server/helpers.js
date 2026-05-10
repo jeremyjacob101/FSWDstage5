@@ -1,6 +1,8 @@
 export function parsePositiveInt(value) {
   const normalized =
-    typeof value === "string" || typeof value === "number" ? Number(value) : NaN;
+    typeof value === "string" || typeof value === "number"
+      ? Number(value)
+      : NaN;
   if (!Number.isInteger(normalized) || normalized <= 0) {
     return null;
   }

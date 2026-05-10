@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 
 function useLocalStorage<T>(key: string, initialValue: T) {
-
   //Read from localStorage on first load
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {

@@ -30,18 +30,16 @@ function getStoredUserIdForApi(): number | null {
   return null;
 }
 
-
-
 //Finds the next available ID
-//Iterates through all ids and finds the max. 
-// Note: Might make sense to use a UUID. This is not a particularly efficient method. 
+//Iterates through all ids and finds the max.
+// Note: Might make sense to use a UUID. This is not a particularly efficient method.
 export function getNextNumericId(items: { id: number }[]) {
   return Math.max(0, ...items.map((item) => item.id)) + 1;
 }
 
-// 
+//
 // Parameters: method - Post method or Patch method
-// Returns a RequestInit object - not fully sure what this is. 
+// Returns a RequestInit object - not fully sure what this is.
 
 export function writeOptions(
   method: "POST" | "PATCH",
@@ -53,7 +51,6 @@ export function writeOptions(
   };
 }
 
-
 // Generic request function
 // Parameters: path (string) and optional options(Request Init)
 // Returns a generic promise
@@ -62,13 +59,11 @@ export async function request<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-
-
   const userId = getStoredUserIdForApi();
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    // Why no-store? What is no-store? 
+    // Why no-store? What is no-store?
     cache: "no-store",
-    // Does options contain headers? 
+    // Does options contain headers?
     headers: {
       "Content-Type": "application/json",
       ...(userId != null ? { "X-User-Id": String(userId) } : {}),
@@ -81,7 +76,7 @@ export async function request<T>(
     throw new Error(`Request failed with status ${response.status}`);
   }
 
-  // What is 204? 
+  // What is 204?
   if (response.status === 204) {
     return undefined as T;
   }

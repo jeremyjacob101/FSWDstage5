@@ -14,18 +14,12 @@ export function AppShell({ notice }: { notice?: string }) {
 
   return (
     <div className="app-shell">
-      <NavBar
-        user={user}
-        onInfo={() => setInfoOpen(true)}
-        onLogout={logout}
-      />
+      <NavBar user={user} onInfo={() => setInfoOpen(true)} onLogout={logout} />
       <main className="page-content">
         {notice && <p className="error-state page-notice">{notice}</p>}
         <Outlet />
       </main>
-      {infoOpen && (
-        <InfoModal user={user} onClose={() => setInfoOpen(false)} />
-      )}
+      {infoOpen && <InfoModal user={user} onClose={() => setInfoOpen(false)} />}
     </div>
   );
 }

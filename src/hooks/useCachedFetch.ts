@@ -83,9 +83,7 @@ function useCachedFetch<T>(
         }
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Something went wrong",
-          );
+          setError(err instanceof Error ? err.message : "Something went wrong");
         }
       } finally {
         if (!cancelled) {

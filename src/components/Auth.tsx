@@ -10,7 +10,6 @@ import {
 } from "../api/api";
 import "./Auth.css";
 
-
 export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +32,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
     try {
       setIsSubmitting(true);
 
-      //What does user return? 
+      //What does user return?
       const user = await authenticateUser({
         username: cleanUsername,
         password,
