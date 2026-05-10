@@ -17,11 +17,10 @@ function useCachedFetch<T>(
   resourceUserId?: number,
 ): CachedFetchResult<T> {
   const { user } = useUser();
+  const currentUserId = user?.id ?? null;
   const key = `cache:${url}`;
 
-  const isAuthorized =
-    user != null &&
-    (resourceUserId === undefined || user.id === resourceUserId);
+  const isAuthorized = user != null && user.id === resourceUserId;
 
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,7 +63,12 @@ function useCachedFetch<T>(
 
     const fetchData = async () => {
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            "X-User-Id": String(currentUserId),
+          },
+        });
 
         if (!response.ok) {
           throw new Error(`Failed to fetch: ${response.status}`);
@@ -95,7 +99,7 @@ function useCachedFetch<T>(
     return () => {
       cancelled = true;
     };
-  }, [url, key, isAuthorized]);
+  }, [url, key, isAuthorized, currentUserId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   function updateCache(newData: T) {
