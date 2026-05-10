@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Photo } from "../data/types";
 import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/userContext";
+import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
+import { usePersistentScroll } from "../hooks/usePersistentScroll";
+import { usePersistentState } from "../hooks/usePersistentState";
 import {
   Button,
   EmptyState,
@@ -20,11 +23,73 @@ import {
 const PHOTOS_PER_BATCH = 12;
 const PHOTO_CHOICES = 20;
 const MAX_PICSUM_SEED = 1_000_000;
+const MAX_RESTORED_PAGES = 30;
 
 type PhotoChoice = {
   seed: number;
   url: string;
 };
+
+type PhotosUiState = {
+  search: string;
+  newTitle: string;
+  selectedAddPhotoUrl: string;
+  editingPhotoId: number | null;
+  draftTitle: string;
+  draftPhotoUrl: string;
+  loadedPages: number;
+};
+
+const DEFAULT_PHOTOS_UI_STATE: PhotosUiState = {
+  search: "",
+  newTitle: "",
+  selectedAddPhotoUrl: "",
+  editingPhotoId: null,
+  draftTitle: "",
+  draftPhotoUrl: "",
+  loadedPages: 1,
+};
+
+function sanitizePhotosUiState(raw: unknown): PhotosUiState {
+  const candidate = raw as Partial<PhotosUiState> | null;
+  const loadedPages =
+    typeof candidate?.loadedPages === "number" &&
+    Number.isInteger(candidate.loadedPages)
+      ? candidate.loadedPages
+      : 1;
+
+  return {
+    search: typeof candidate?.search === "string" ? candidate.search : "",
+    newTitle: typeof candidate?.newTitle === "string" ? candidate.newTitle : "",
+    selectedAddPhotoUrl:
+      typeof candidate?.selectedAddPhotoUrl === "string"
+        ? candidate.selectedAddPhotoUrl
+        : "",
+    editingPhotoId:
+      typeof candidate?.editingPhotoId === "number" &&
+      candidate.editingPhotoId > 0
+        ? candidate.editingPhotoId
+        : null,
+    draftTitle:
+      typeof candidate?.draftTitle === "string" ? candidate.draftTitle : "",
+    draftPhotoUrl:
+      typeof candidate?.draftPhotoUrl === "string"
+        ? candidate.draftPhotoUrl
+        : "",
+    loadedPages: Math.min(Math.max(loadedPages, 1), MAX_RESTORED_PAGES),
+  };
+}
+
+function parsePositiveInt(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
 
 function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
   const usedSeeds = new Set<number>();
@@ -49,27 +114,47 @@ export function PhotosPage() {
   const { user: activeUser } = useUser();
   const navigate = useNavigate();
   const { albumId } = useParams();
-  const [search, setSearch] = useState("");
-  const [newTitle, setNewTitle] = useState("");
   const [addPhotoChoices, setAddPhotoChoices] = useState(createPhotoChoices);
-  const [selectedAddPhotoUrl, setSelectedAddPhotoUrl] = useState(
-    addPhotoChoices[0]?.url ?? "",
-  );
-  const [editingPhotoId, setEditingPhotoId] = useState<number | null>(null);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftPhotoUrl, setDraftPhotoUrl] = useState("");
   const [editPhotoChoices, setEditPhotoChoices] = useState<PhotoChoice[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [page, setPage] = useState(1);
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isReadyForScrollRestore, setIsReadyForScrollRestore] = useState(false);
   const [pendingPhotoIds, setPendingPhotoIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const selectedAlbumId = albumId ? Number(albumId) : albums[0]?.id;
+  const currentUserId = activeUser?.id ?? 0;
+
+  const albumIdParam = parsePositiveInt(albumId);
+  const selectedAlbumId = albumIdParam ?? albums[0]?.id;
   const album = albums.find(
     (currentAlbum) => currentAlbum.id === selectedAlbumId,
   );
+  const albumPageKey = `photos:album:${selectedAlbumId ?? "none"}`;
+  const uiStateKey = buildUiStateKey(currentUserId, albumPageKey);
+  const scrollKey = buildScrollKey(currentUserId, albumPageKey);
+  const [uiState, setUiState] = usePersistentState<PhotosUiState>(
+    uiStateKey,
+    DEFAULT_PHOTOS_UI_STATE,
+    sanitizePhotosUiState,
+  );
+  usePersistentScroll(
+    scrollKey,
+    Boolean(activeUser),
+    isReadyForScrollRestore && !isLoading,
+  );
+
+  const {
+    search,
+    newTitle,
+    selectedAddPhotoUrl,
+    editingPhotoId,
+    draftTitle,
+    draftPhotoUrl,
+    loadedPages,
+  } = uiState;
+
   const visiblePhotos = photos.filter((photo) => {
     const query = search.toLowerCase().trim();
     return (
@@ -79,28 +164,41 @@ export function PhotosPage() {
   });
 
   useEffect(() => {
+    if (selectedAddPhotoUrl || !addPhotoChoices.length) {
+      return;
+    }
+    setUiState((currentState) => ({
+      ...currentState,
+      selectedAddPhotoUrl: addPhotoChoices[0]?.url ?? "",
+    }));
+  }, [addPhotoChoices, selectedAddPhotoUrl, setUiState]);
+
+  useEffect(() => {
     if (!album) {
       return;
     }
 
     let isCurrent = true;
-    const albumId = album.id;
+    const targetAlbumId = album.id;
+    const pagesToLoad = Math.max(1, loadedPages);
 
-    async function loadPhotos() {
+    async function loadInitialPhotos() {
+      setIsReadyForScrollRestore(false);
       setIsLoading(true);
       setError("");
 
       try {
-        const nextPhotos = await getPhotosForAlbum(
-          albumId,
-          1,
-          PHOTOS_PER_BATCH,
+        const pageRequests = Array.from({ length: pagesToLoad }, (_, index) =>
+          getPhotosForAlbum(targetAlbumId, index + 1, PHOTOS_PER_BATCH),
         );
+        const photoPages = await Promise.all(pageRequests);
+        const mergedPhotos = photoPages.flat();
+        const lastPage = photoPages[photoPages.length - 1] ?? [];
 
         if (isCurrent) {
-          setPhotos(nextPhotos);
-          setPage(1);
-          setHasMorePhotos(nextPhotos.length === PHOTOS_PER_BATCH);
+          setPhotos(mergedPhotos);
+          setPage(pagesToLoad);
+          setHasMorePhotos(lastPage.length === PHOTOS_PER_BATCH);
         }
       } catch {
         if (isCurrent) {
@@ -109,16 +207,51 @@ export function PhotosPage() {
       } finally {
         if (isCurrent) {
           setIsLoading(false);
+          setIsReadyForScrollRestore(true);
         }
       }
     }
 
-    void loadPhotos();
+    void loadInitialPhotos();
 
     return () => {
       isCurrent = false;
     };
-  }, [album]);
+    // `loadedPages` is intentionally read as the currently persisted depth for
+    // the active album key when this album view mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [album?.id]);
+
+  useEffect(() => {
+    setUiState((currentState) => {
+      if (currentState.editingPhotoId == null) {
+        return currentState;
+      }
+      if (photos.some((photo) => photo.id === currentState.editingPhotoId)) {
+        return currentState;
+      }
+      return {
+        ...currentState,
+        editingPhotoId: null,
+        draftTitle: "",
+        draftPhotoUrl: "",
+      };
+    });
+  }, [photos, setUiState]);
+
+  const hydratedEditPhotoChoices = useMemo(() => {
+    if (editingPhotoId == null || editPhotoChoices.length > 0) {
+      return [] as PhotoChoice[];
+    }
+    const editingPhoto = photos.find((photo) => photo.id === editingPhotoId);
+    const preservedUrl = draftPhotoUrl || editingPhoto?.url || "";
+    const fallbackChoices = createPhotoChoices(PHOTO_CHOICES - 1);
+    return preservedUrl
+      ? [{ seed: editingPhotoId, url: preservedUrl }, ...fallbackChoices]
+      : fallbackChoices;
+    // Keep hydrated choices stable while editing after refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editPhotoChoices.length, editingPhotoId, photos]);
 
   const loadMorePhotos = useCallback(async () => {
     if (!album || isLoading || !hasMorePhotos) {
@@ -139,12 +272,16 @@ export function PhotosPage() {
       setPhotos((currentPhotos) => [...currentPhotos, ...nextPhotos]);
       setPage(nextPage);
       setHasMorePhotos(nextPhotos.length === PHOTOS_PER_BATCH);
+      setUiState((currentState) => ({
+        ...currentState,
+        loadedPages: Math.min(nextPage, MAX_RESTORED_PAGES),
+      }));
     } catch {
       setError("Could not load more photos. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [album, hasMorePhotos, isLoading, page]);
+  }, [album, hasMorePhotos, isLoading, page, setUiState]);
 
   useEffect(() => {
     const loadMoreElement = loadMoreRef.current;
@@ -183,7 +320,7 @@ export function PhotosPage() {
         <EmptyState message="That album could not be found." />
         <Button
           variant="secondary"
-          onClick={() => navigate(`/users/${activeUser.id}/albums`)}
+          onClick={() => navigate(`/users/${currentUserId}/albums`)}
         >
           Back to Albums
         </Button>
@@ -205,10 +342,16 @@ export function PhotosPage() {
       });
 
       setPhotos((currentPhotos) => [photo, ...currentPhotos]);
-      setNewTitle("");
+      setUiState((currentState) => ({
+        ...currentState,
+        newTitle: "",
+      }));
       const nextChoices = createPhotoChoices();
       setAddPhotoChoices(nextChoices);
-      setSelectedAddPhotoUrl(nextChoices[0]?.url ?? "");
+      setUiState((currentState) => ({
+        ...currentState,
+        selectedAddPhotoUrl: nextChoices[0]?.url ?? "",
+      }));
     } catch {
       setError("Could not add the photo. Please try again.");
     }
@@ -217,7 +360,10 @@ export function PhotosPage() {
   const refreshAddPhotoChoices = () => {
     const nextChoices = createPhotoChoices();
     setAddPhotoChoices(nextChoices);
-    setSelectedAddPhotoUrl(nextChoices[0]?.url ?? "");
+    setUiState((currentState) => ({
+      ...currentState,
+      selectedAddPhotoUrl: nextChoices[0]?.url ?? "",
+    }));
   };
 
   const startEditingPhoto = (photo: Photo) => {
@@ -225,24 +371,33 @@ export function PhotosPage() {
       { seed: photo.id, url: photo.url },
       ...createPhotoChoices(PHOTO_CHOICES - 1),
     ];
-    setEditingPhotoId(photo.id);
-    setDraftTitle(photo.title);
-    setDraftPhotoUrl(photo.url);
     setEditPhotoChoices(nextChoices);
+    setUiState((currentState) => ({
+      ...currentState,
+      editingPhotoId: photo.id,
+      draftTitle: photo.title,
+      draftPhotoUrl: photo.url,
+    }));
     setError("");
   };
 
   const cancelEditingPhoto = () => {
-    setEditingPhotoId(null);
-    setDraftTitle("");
-    setDraftPhotoUrl("");
     setEditPhotoChoices([]);
+    setUiState((currentState) => ({
+      ...currentState,
+      editingPhotoId: null,
+      draftTitle: "",
+      draftPhotoUrl: "",
+    }));
   };
 
   const refreshEditPhotoChoices = () => {
     const nextChoices = createPhotoChoices();
     setEditPhotoChoices(nextChoices);
-    setDraftPhotoUrl(nextChoices[0]?.url ?? "");
+    setUiState((currentState) => ({
+      ...currentState,
+      draftPhotoUrl: nextChoices[0]?.url ?? "",
+    }));
   };
 
   const savePhotoTitle = async (photo: Photo) => {
@@ -303,12 +458,17 @@ export function PhotosPage() {
       <Toolbar>
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              search: value,
+            }))
+          }
           placeholder="Search photo id or title"
         />
         <Button
           variant="secondary"
-          onClick={() => navigate(`/users/${activeUser.id}/albums`)}
+          onClick={() => navigate(`/users/${currentUserId}/albums`)}
         >
           Back to Albums
         </Button>
@@ -316,7 +476,12 @@ export function PhotosPage() {
       <form className="inline-form" onSubmit={addPhoto}>
         <input
           value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
+          onChange={(event) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              newTitle: event.target.value,
+            }))
+          }
           placeholder="New photo title"
         />
         <Button
@@ -343,7 +508,12 @@ export function PhotosPage() {
               }
               key={choice.seed}
               type="button"
-              onClick={() => setSelectedAddPhotoUrl(choice.url)}
+              onClick={() =>
+                setUiState((currentState) => ({
+                  ...currentState,
+                  selectedAddPhotoUrl: choice.url,
+                }))
+              }
               aria-label={`Choose photo seed ${choice.seed}`}
             >
               <img src={choice.url} alt="" loading="lazy" decoding="async" />
@@ -380,7 +550,12 @@ export function PhotosPage() {
                     <input
                       className="photo-edit-input"
                       value={draftTitle}
-                      onChange={(event) => setDraftTitle(event.target.value)}
+                      onChange={(event) =>
+                        setUiState((currentState) => ({
+                          ...currentState,
+                          draftTitle: event.target.value,
+                        }))
+                      }
                       disabled={isPending}
                       aria-label={`Photo ${photo.id} title`}
                     />
@@ -395,7 +570,10 @@ export function PhotosPage() {
                       </Button>
                     </div>
                     <div className="photo-choice-grid compact">
-                      {editPhotoChoices.map((choice) => (
+                      {(editPhotoChoices.length
+                        ? editPhotoChoices
+                        : hydratedEditPhotoChoices
+                      ).map((choice) => (
                         <button
                           className={
                             choice.url === draftPhotoUrl
@@ -404,7 +582,12 @@ export function PhotosPage() {
                           }
                           key={`${photo.id}-${choice.seed}-${choice.url}`}
                           type="button"
-                          onClick={() => setDraftPhotoUrl(choice.url)}
+                          onClick={() =>
+                            setUiState((currentState) => ({
+                              ...currentState,
+                              draftPhotoUrl: choice.url,
+                            }))
+                          }
                           disabled={isPending}
                           aria-label={`Choose photo seed ${choice.seed}`}
                         >

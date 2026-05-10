@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Comment, Post } from "../data/types";
 import { useCachedUserPosts } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/userContext";
+import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
+import { usePersistentScroll } from "../hooks/usePersistentScroll";
+import { usePersistentState } from "../hooks/usePersistentState";
 import {
   Button,
   EmptyState,
@@ -19,33 +22,123 @@ import {
   updatePost,
 } from "../api/api";
 
+type PostsUiState = {
+  search: string;
+  showComments: boolean;
+  selectedPostId: number | null;
+  newPostTitle: string;
+  newPostBody: string;
+  newComment: string;
+  editingCommentId: number | null;
+  draftCommentBody: string;
+  editingPostId: number | null;
+  draftPostTitle: string;
+  draftPostBody: string;
+};
+
+const DEFAULT_POSTS_UI_STATE: PostsUiState = {
+  search: "",
+  showComments: false,
+  selectedPostId: null,
+  newPostTitle: "",
+  newPostBody: "",
+  newComment: "",
+  editingCommentId: null,
+  draftCommentBody: "",
+  editingPostId: null,
+  draftPostTitle: "",
+  draftPostBody: "",
+};
+
+function sanitizePostsUiState(raw: unknown): PostsUiState {
+  const candidate = raw as Partial<PostsUiState> | null;
+  return {
+    search: typeof candidate?.search === "string" ? candidate.search : "",
+    showComments: Boolean(candidate?.showComments),
+    selectedPostId:
+      typeof candidate?.selectedPostId === "number" &&
+      candidate.selectedPostId > 0
+        ? candidate.selectedPostId
+        : null,
+    newPostTitle:
+      typeof candidate?.newPostTitle === "string" ? candidate.newPostTitle : "",
+    newPostBody:
+      typeof candidate?.newPostBody === "string" ? candidate.newPostBody : "",
+    newComment:
+      typeof candidate?.newComment === "string" ? candidate.newComment : "",
+    editingCommentId:
+      typeof candidate?.editingCommentId === "number" &&
+      candidate.editingCommentId > 0
+        ? candidate.editingCommentId
+        : null,
+    draftCommentBody:
+      typeof candidate?.draftCommentBody === "string"
+        ? candidate.draftCommentBody
+        : "",
+    editingPostId:
+      typeof candidate?.editingPostId === "number" &&
+      candidate.editingPostId > 0
+        ? candidate.editingPostId
+        : null,
+    draftPostTitle:
+      typeof candidate?.draftPostTitle === "string"
+        ? candidate.draftPostTitle
+        : "",
+    draftPostBody:
+      typeof candidate?.draftPostBody === "string"
+        ? candidate.draftPostBody
+        : "",
+  };
+}
+
 export function PostsPage() {
   const { posts, setPosts, isLoading, loadError } = useCachedUserPosts();
   const { user: activeUser } = useUser();
-  const [search, setSearch] = useState("");
-  const [showComments, setShowComments] = useState(false);
-  const [newPostTitle, setNewPostTitle] = useState("");
-  const [newPostBody, setNewPostBody] = useState("");
-  const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-  const [draftCommentBody, setDraftCommentBody] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
-  const [editingPostId, setEditingPostId] = useState<number | null>(null);
-  const [draftPostTitle, setDraftPostTitle] = useState("");
-  const [draftPostBody, setDraftPostBody] = useState("");
   const [pendingPostIds, setPendingPostIds] = useState<number[]>([]);
   const [pendingCommentIds, setPendingCommentIds] = useState<number[]>([]);
   const [error, setError] = useState("");
-  const [selectedPostId, setSelectedPostId] = useState<number | undefined>(
-    posts[0]?.id,
+  const currentUserId = activeUser?.id ?? 0;
+  const uiStateKey = buildUiStateKey(currentUserId, "posts");
+  const scrollKey = buildScrollKey(currentUserId, "posts");
+  const [uiState, setUiState] = usePersistentState<PostsUiState>(
+    uiStateKey,
+    DEFAULT_POSTS_UI_STATE,
+    sanitizePostsUiState,
+  );
+
+  const {
+    search,
+    showComments,
+    selectedPostId,
+    newPostTitle,
+    newPostBody,
+    newComment,
+    editingCommentId,
+    draftCommentBody,
+    editingPostId,
+    draftPostTitle,
+    draftPostBody,
+  } = uiState;
+  usePersistentScroll(
+    scrollKey,
+    Boolean(activeUser),
+    !isLoading && (!showComments || !isLoadingComments),
   );
 
   const selectedPost =
     posts.find((post) => post.id === selectedPostId) ?? posts[0];
   const isEditingSelectedPost =
     selectedPost !== undefined && editingPostId === selectedPost.id;
+  const postComments = useMemo(
+    () =>
+      selectedPost
+        ? comments.filter((comment) => comment.postId === selectedPost.id)
+        : [],
+    [comments, selectedPost],
+  );
 
   useEffect(() => {
     if (!selectedPost) {
@@ -60,7 +153,6 @@ export function PostsPage() {
 
       try {
         const nextComments = await getCommentsForPost(selectedPost.id);
-
         if (isCurrent) {
           setComments(nextComments);
         }
@@ -82,9 +174,87 @@ export function PostsPage() {
     };
   }, [selectedPost]);
 
-  if (!activeUser) {
-    return null;
-  }
+  useEffect(() => {
+    setUiState((currentState) => {
+      if (!posts.length) {
+        if (
+          currentState.selectedPostId == null &&
+          currentState.editingPostId == null
+        ) {
+          return currentState;
+        }
+        return {
+          ...currentState,
+          selectedPostId: null,
+          editingPostId: null,
+          draftPostTitle: "",
+          draftPostBody: "",
+          showComments: false,
+        };
+      }
+
+      const selectedStillExists =
+        currentState.selectedPostId != null &&
+        posts.some((post) => post.id === currentState.selectedPostId);
+      const editingStillExists =
+        currentState.editingPostId != null &&
+        posts.some((post) => post.id === currentState.editingPostId);
+
+      const nextSelectedPostId = selectedStillExists
+        ? currentState.selectedPostId
+        : (posts[0]?.id ?? null);
+      const nextEditingPostId = editingStillExists
+        ? currentState.editingPostId
+        : null;
+      const nextDraftPostTitle = editingStillExists
+        ? currentState.draftPostTitle
+        : "";
+      const nextDraftPostBody = editingStillExists
+        ? currentState.draftPostBody
+        : "";
+      const nextShowComments =
+        nextSelectedPostId == null ? false : currentState.showComments;
+
+      if (
+        nextSelectedPostId === currentState.selectedPostId &&
+        nextEditingPostId === currentState.editingPostId &&
+        nextDraftPostTitle === currentState.draftPostTitle &&
+        nextDraftPostBody === currentState.draftPostBody &&
+        nextShowComments === currentState.showComments
+      ) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        selectedPostId: nextSelectedPostId,
+        editingPostId: nextEditingPostId,
+        draftPostTitle: nextDraftPostTitle,
+        draftPostBody: nextDraftPostBody,
+        showComments: nextShowComments,
+      };
+    });
+  }, [posts, setUiState]);
+
+  useEffect(() => {
+    setUiState((currentState) => {
+      if (currentState.editingCommentId == null) {
+        return currentState;
+      }
+      if (
+        postComments.some(
+          (comment) => comment.id === currentState.editingCommentId,
+        )
+      ) {
+        return currentState;
+      }
+      return {
+        ...currentState,
+        editingCommentId: null,
+        draftCommentBody: "",
+      };
+    });
+  }, [postComments, setUiState]);
 
   const visiblePosts = posts.filter((post) => {
     const query = search.toLowerCase().trim();
@@ -96,7 +266,7 @@ export function PostsPage() {
 
   const isOwnComment = (comment: Comment) =>
     comment.email.trim().toLowerCase() ===
-    activeUser.email.trim().toLowerCase();
+    (activeUser?.email ?? "").trim().toLowerCase();
 
   const addPost: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
@@ -108,16 +278,19 @@ export function PostsPage() {
       setError("");
       setIsCreatingPost(true);
       const post = await createPost({
-        userId: activeUser.id,
+        userId: currentUserId,
         title,
         body,
       });
 
       setPosts((currentPosts) => [post, ...currentPosts]);
-      setSelectedPostId(post.id);
-      setNewPostTitle("");
-      setNewPostBody("");
-      setShowComments(false);
+      setUiState((currentState) => ({
+        ...currentState,
+        selectedPostId: post.id,
+        newPostTitle: "",
+        newPostBody: "",
+        showComments: false,
+      }));
     } catch {
       setError("Could not create the post. Please try again.");
     } finally {
@@ -136,44 +309,59 @@ export function PostsPage() {
       setError("");
       const comment = await createComment({
         postId: selectedPost.id,
-        name: activeUser.name,
-        email: activeUser.email,
+        name: activeUser?.name ?? "",
+        email: activeUser?.email ?? "",
         body,
       });
 
       setComments((currentComments) => [...currentComments, comment]);
-      setNewComment("");
-      setShowComments(true);
+      setUiState((currentState) => ({
+        ...currentState,
+        newComment: "",
+        showComments: true,
+      }));
     } catch {
       setError("Could not add the comment. Please try again.");
     }
   };
 
   const startEditingPost = (post: Post) => {
-    setSelectedPostId(post.id);
-    setEditingPostId(post.id);
-    setDraftPostTitle(post.title);
-    setDraftPostBody(post.body);
+    setUiState((currentState) => ({
+      ...currentState,
+      selectedPostId: post.id,
+      editingPostId: post.id,
+      draftPostTitle: post.title,
+      draftPostBody: post.body,
+    }));
     setError("");
   };
 
   const cancelEditingPost = () => {
-    setEditingPostId(null);
-    setDraftPostTitle("");
-    setDraftPostBody("");
+    setUiState((currentState) => ({
+      ...currentState,
+      editingPostId: null,
+      draftPostTitle: "",
+      draftPostBody: "",
+    }));
   };
 
   const startEditingComment = (comment: Comment) => {
     if (!isOwnComment(comment)) return;
 
-    setEditingCommentId(comment.id);
-    setDraftCommentBody(comment.body);
+    setUiState((currentState) => ({
+      ...currentState,
+      editingCommentId: comment.id,
+      draftCommentBody: comment.body,
+    }));
     setError("");
   };
 
   const cancelEditingComment = () => {
-    setEditingCommentId(null);
-    setDraftCommentBody("");
+    setUiState((currentState) => ({
+      ...currentState,
+      editingCommentId: null,
+      draftCommentBody: "",
+    }));
   };
 
   const saveComment = async (comment: Comment) => {
@@ -268,7 +456,11 @@ export function PostsPage() {
         const nextPosts = currentPosts.filter(
           (currentPost) => currentPost.id !== post.id,
         );
-        setSelectedPostId(nextPosts[0]?.id);
+        setUiState((currentState) => ({
+          ...currentState,
+          selectedPostId: nextPosts[0]?.id ?? null,
+          showComments: false,
+        }));
         return nextPosts;
       });
       if (editingPostId === post.id) {
@@ -283,9 +475,9 @@ export function PostsPage() {
     }
   };
 
-  const postComments = selectedPost
-    ? comments.filter((comment) => comment.postId === selectedPost.id)
-    : [];
+  if (!activeUser) {
+    return null;
+  }
 
   return (
     <section className="screen-stack">
@@ -296,20 +488,35 @@ export function PostsPage() {
       <Toolbar>
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              search: value,
+            }))
+          }
           placeholder="Search post id or title"
         />
       </Toolbar>
       <form className="inline-form post-compose-form" onSubmit={addPost}>
         <input
           value={newPostTitle}
-          onChange={(event) => setNewPostTitle(event.target.value)}
+          onChange={(event) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              newPostTitle: event.target.value,
+            }))
+          }
           placeholder="New post title"
           disabled={isCreatingPost}
         />
         <textarea
           value={newPostBody}
-          onChange={(event) => setNewPostBody(event.target.value)}
+          onChange={(event) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              newPostBody: event.target.value,
+            }))
+          }
           placeholder="New post body"
           disabled={isCreatingPost}
           rows={3}
@@ -350,8 +557,11 @@ export function PostsPage() {
                   <Button
                     variant="secondary"
                     onClick={() => {
-                      setSelectedPostId(post.id);
-                      setShowComments(false);
+                      setUiState((currentState) => ({
+                        ...currentState,
+                        selectedPostId: post.id,
+                        showComments: false,
+                      }));
                     }}
                     disabled={isPending}
                   >
@@ -396,7 +606,10 @@ export function PostsPage() {
                     <input
                       value={draftPostTitle}
                       onChange={(event) =>
-                        setDraftPostTitle(event.target.value)
+                        setUiState((currentState) => ({
+                          ...currentState,
+                          draftPostTitle: event.target.value,
+                        }))
                       }
                       disabled={pendingPostIds.includes(selectedPost.id)}
                     />
@@ -405,7 +618,12 @@ export function PostsPage() {
                     Body
                     <textarea
                       value={draftPostBody}
-                      onChange={(event) => setDraftPostBody(event.target.value)}
+                      onChange={(event) =>
+                        setUiState((currentState) => ({
+                          ...currentState,
+                          draftPostBody: event.target.value,
+                        }))
+                      }
                       disabled={pendingPostIds.includes(selectedPost.id)}
                       rows={7}
                     />
@@ -445,7 +663,12 @@ export function PostsPage() {
                     </Button>
                     <Button
                       variant="secondary"
-                      onClick={() => setShowComments((value) => !value)}
+                      onClick={() =>
+                        setUiState((currentState) => ({
+                          ...currentState,
+                          showComments: !currentState.showComments,
+                        }))
+                      }
                     >
                       {showComments ? "Hide comments" : "Show comments"}
                     </Button>
@@ -457,7 +680,12 @@ export function PostsPage() {
                   <form className="inline-form" onSubmit={addComment}>
                     <input
                       value={newComment}
-                      onChange={(event) => setNewComment(event.target.value)}
+                      onChange={(event) =>
+                        setUiState((currentState) => ({
+                          ...currentState,
+                          newComment: event.target.value,
+                        }))
+                      }
                       placeholder="Add a comment"
                     />
                     <Button type="submit">Add Comment</Button>
@@ -478,7 +706,10 @@ export function PostsPage() {
                             className="comment-edit-input"
                             value={draftCommentBody}
                             onChange={(event) =>
-                              setDraftCommentBody(event.target.value)
+                              setUiState((currentState) => ({
+                                ...currentState,
+                                draftCommentBody: event.target.value,
+                              }))
                             }
                             disabled={isPending}
                             rows={4}

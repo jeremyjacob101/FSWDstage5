@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/userContext";
+import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
+import { usePersistentScroll } from "../hooks/usePersistentScroll";
+import { usePersistentState } from "../hooks/usePersistentState";
 import {
   Button,
   EmptyState,
@@ -11,17 +14,44 @@ import {
 } from "../components/ui";
 import { createAlbum } from "../api/api";
 
+type AlbumsUiState = {
+  search: string;
+  newTitle: string;
+};
+
+const DEFAULT_ALBUMS_UI_STATE: AlbumsUiState = {
+  search: "",
+  newTitle: "",
+};
+
+function sanitizeAlbumsUiState(raw: unknown): AlbumsUiState {
+  const candidate = raw as Partial<AlbumsUiState> | null;
+  return {
+    search: typeof candidate?.search === "string" ? candidate.search : "",
+    newTitle: typeof candidate?.newTitle === "string" ? candidate.newTitle : "",
+  };
+}
+
 export function AlbumsPage() {
   const { albums, setAlbums, isLoading, loadError } = useCachedUserAlbums();
   const { user: activeUser } = useUser();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState("");
+  const currentUserId = activeUser?.id ?? 0;
+  const uiStateKey = buildUiStateKey(currentUserId, "albums");
+  const scrollKey = buildScrollKey(currentUserId, "albums");
+  const [uiState, setUiState] = usePersistentState<AlbumsUiState>(
+    uiStateKey,
+    DEFAULT_ALBUMS_UI_STATE,
+    sanitizeAlbumsUiState,
+  );
+  usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 
   if (!activeUser) {
     return null;
   }
+
+  const { search, newTitle } = uiState;
 
   const visibleAlbums = albums.filter((album) => {
     const query = search.toLowerCase().trim();
@@ -40,7 +70,10 @@ export function AlbumsPage() {
       setError("");
       const album = await createAlbum({ userId: activeUser.id, title });
       setAlbums((currentAlbums) => [album, ...currentAlbums]);
-      setNewTitle("");
+      setUiState((currentState) => ({
+        ...currentState,
+        newTitle: "",
+      }));
     } catch {
       setError("Could not create the album. Please try again.");
     }
@@ -55,14 +88,24 @@ export function AlbumsPage() {
       <Toolbar>
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              search: value,
+            }))
+          }
           placeholder="Search album id or title"
         />
       </Toolbar>
       <form className="inline-form" onSubmit={addAlbum}>
         <input
           value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
+          onChange={(event) =>
+            setUiState((currentState) => ({
+              ...currentState,
+              newTitle: event.target.value,
+            }))
+          }
           placeholder="New album title"
         />
         <Button type="submit">New Album</Button>

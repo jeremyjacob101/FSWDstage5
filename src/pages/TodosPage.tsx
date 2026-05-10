@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Todo } from "../data/types";
 import { useCachedUserTodos } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/userContext";
+import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
+import { usePersistentScroll } from "../hooks/usePersistentScroll";
+import { usePersistentState } from "../hooks/usePersistentState";
 import {
   Button,
   EmptyState,
@@ -11,21 +14,85 @@ import {
 } from "../components/ui";
 import { createTodo, deleteTodo, updateTodo } from "../api/api";
 
+type TodoSort = "id" | "title" | "completed";
+
+type TodosUiState = {
+  search: string;
+  sortBy: TodoSort;
+  newTitle: string;
+  editingTodoId: number | null;
+  draftTitle: string;
+};
+
+const DEFAULT_TODOS_UI_STATE: TodosUiState = {
+  search: "",
+  sortBy: "id",
+  newTitle: "",
+  editingTodoId: null,
+  draftTitle: "",
+};
+
+function sanitizeTodosUiState(raw: unknown): TodosUiState {
+  const candidate = raw as Partial<TodosUiState> | null;
+  const sortBy =
+    candidate?.sortBy === "title" || candidate?.sortBy === "completed"
+      ? candidate.sortBy
+      : "id";
+  return {
+    search: typeof candidate?.search === "string" ? candidate.search : "",
+    sortBy,
+    newTitle: typeof candidate?.newTitle === "string" ? candidate.newTitle : "",
+    editingTodoId:
+      typeof candidate?.editingTodoId === "number" &&
+      candidate.editingTodoId > 0
+        ? candidate.editingTodoId
+        : null,
+    draftTitle:
+      typeof candidate?.draftTitle === "string" ? candidate.draftTitle : "",
+  };
+}
+
 export function TodosPage() {
   const { todos, setTodos, isLoading, loadError } = useCachedUserTodos();
   const { user: activeUser } = useUser();
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"id" | "title" | "completed">("id");
-  const [newTitle, setNewTitle] = useState("");
-  const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
-  const [draftTitle, setDraftTitle] = useState("");
   const [pendingTodoIds, setPendingTodoIds] = useState<number[]>([]);
   const [isCreatingTodo, setIsCreatingTodo] = useState(false);
   const [error, setError] = useState("");
+  const currentUserId = activeUser?.id ?? 0;
+  const uiStateKey = buildUiStateKey(currentUserId, "todos");
+  const scrollKey = buildScrollKey(currentUserId, "todos");
+  const [uiState, setUiState] = usePersistentState<TodosUiState>(
+    uiStateKey,
+    DEFAULT_TODOS_UI_STATE,
+    sanitizeTodosUiState,
+  );
+  usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 
-  if (!activeUser) {
-    return null;
-  }
+  const { search, sortBy, newTitle, editingTodoId, draftTitle } = uiState;
+
+  const setUiField = <K extends keyof TodosUiState>(
+    field: K,
+    value: TodosUiState[K],
+  ) => {
+    setUiState((currentState) => ({
+      ...currentState,
+      [field]: value,
+    }));
+  };
+
+  useEffect(() => {
+    if (editingTodoId == null) {
+      return;
+    }
+    if (todos.some((todo) => todo.id === editingTodoId)) {
+      return;
+    }
+    setUiState((currentState) => ({
+      ...currentState,
+      editingTodoId: null,
+      draftTitle: "",
+    }));
+  }, [editingTodoId, setUiState, todos]);
 
   const query = search.toLowerCase().trim();
   const visibleTodos = [...todos]
@@ -56,13 +123,13 @@ export function TodosPage() {
       setError("");
       setIsCreatingTodo(true);
       const todo = await createTodo({
-        userId: activeUser.id,
+        userId: currentUserId,
         title,
         completed: false,
       });
 
       setTodos((currentTodos) => [todo, ...currentTodos]);
-      setNewTitle("");
+      setUiField("newTitle", "");
     } catch {
       setError("Could not create the todo. Please try again.");
     } finally {
@@ -71,14 +138,20 @@ export function TodosPage() {
   };
 
   const startEditingTodo = (todo: Todo) => {
-    setEditingTodoId(todo.id);
-    setDraftTitle(todo.title);
+    setUiState((currentState) => ({
+      ...currentState,
+      editingTodoId: todo.id,
+      draftTitle: todo.title,
+    }));
     setError("");
   };
 
   const cancelEditingTodo = () => {
-    setEditingTodoId(null);
-    setDraftTitle("");
+    setUiState((currentState) => ({
+      ...currentState,
+      editingTodoId: null,
+      draftTitle: "",
+    }));
   };
 
   const saveTodoTitle = async (todo: Todo) => {
@@ -155,6 +228,10 @@ export function TodosPage() {
     }
   };
 
+  if (!activeUser) {
+    return null;
+  }
+
   return (
     <section className="screen-stack">
       <ScreenHeader
@@ -164,14 +241,16 @@ export function TodosPage() {
       <Toolbar>
         <SearchInput
           value={search}
-          onChange={setSearch}
+          onChange={(value) => setUiField("search", value)}
           placeholder="Search id, title, status"
         />
         <label className="select-label">
           Sort
           <select
             value={sortBy}
-            onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+            onChange={(event) =>
+              setUiField("sortBy", event.target.value as TodoSort)
+            }
           >
             <option value="id">ID</option>
             <option value="title">Title</option>
@@ -182,7 +261,7 @@ export function TodosPage() {
       <form className="inline-form" onSubmit={addTodo}>
         <input
           value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
+          onChange={(event) => setUiField("newTitle", event.target.value)}
           placeholder="New todo title"
           disabled={isCreatingTodo}
         />
@@ -216,7 +295,9 @@ export function TodosPage() {
                   <input
                     className="todo-edit-input"
                     value={draftTitle}
-                    onChange={(event) => setDraftTitle(event.target.value)}
+                    onChange={(event) =>
+                      setUiField("draftTitle", event.target.value)
+                    }
                     disabled={isPending}
                     aria-label={`Todo ${todo.id} title`}
                   />
