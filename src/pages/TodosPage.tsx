@@ -33,11 +33,10 @@ const DEFAULT_TODOS_UI_STATE: TodosUiState = {
 };
 
 export function TodosPage() {
-  const { todos, setTodos, isLoading, loadError } = useCachedUserTodos();
+  const { todos, setTodos, isLoading } = useCachedUserTodos();
   const { user: activeUser } = useUser();
   const [pendingTodoIds, setPendingTodoIds] = useState<number[]>([]);
   const [isCreatingTodo, setIsCreatingTodo] = useState(false);
-  const [error, setError] = useState("");
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = buildUiStateKey(currentUserId, "todos");
   const scrollKey = buildScrollKey(currentUserId, "todos");
@@ -99,7 +98,6 @@ export function TodosPage() {
     if (!title || isCreatingTodo) return;
 
     try {
-      setError("");
       setIsCreatingTodo(true);
       const todo = await createTodo({
         userId: currentUserId,
@@ -110,7 +108,7 @@ export function TodosPage() {
       setTodos((currentTodos) => [todo, ...currentTodos]);
       setUiField("newTitle", "");
     } catch {
-      setError("Could not create the todo. Please try again.");
+      return;
     } finally {
       setIsCreatingTodo(false);
     }
@@ -122,7 +120,6 @@ export function TodosPage() {
       editingTodoId: todo.id,
       draftTitle: todo.title,
     }));
-    setError("");
   };
 
   const cancelEditingTodo = () => {
@@ -138,7 +135,6 @@ export function TodosPage() {
     if (!title || pendingTodoIds.includes(todo.id)) return;
 
     try {
-      setError("");
       setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       const updatedTodo = await updateTodo(todo.id, {
         title,
@@ -152,7 +148,7 @@ export function TodosPage() {
       );
       cancelEditingTodo();
     } catch {
-      setError("Could not update the todo. Please try again.");
+      return;
     } finally {
       setPendingTodoIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== todo.id),
@@ -164,7 +160,6 @@ export function TodosPage() {
     if (pendingTodoIds.includes(todo.id)) return;
 
     try {
-      setError("");
       setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       const updatedTodo = await updateTodo(todo.id, {
         title: todo.title,
@@ -177,7 +172,7 @@ export function TodosPage() {
         ),
       );
     } catch {
-      setError("Could not update the todo status. Please try again.");
+      return;
     } finally {
       setPendingTodoIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== todo.id),
@@ -189,7 +184,6 @@ export function TodosPage() {
     if (pendingTodoIds.includes(todo.id)) return;
 
     try {
-      setError("");
       setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       await deleteTodo(todo.id);
       setTodos((currentTodos) =>
@@ -199,7 +193,7 @@ export function TodosPage() {
         cancelEditingTodo();
       }
     } catch {
-      setError("Could not delete the todo. Please try again.");
+      return;
     } finally {
       setPendingTodoIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== todo.id),
@@ -248,12 +242,6 @@ export function TodosPage() {
           {isCreatingTodo ? "Adding..." : "New Todo"}
         </Button>
       </form>
-      {loadError && (
-        <p className="error-state">
-          Could not load todos. Please make sure JSON-Server is running.
-        </p>
-      )}
-      {error && <p className="error-state">{error}</p>}
       <div className="list-grid">
         {isLoading && <EmptyState message="Loading todos..." />}
         {visibleTodos.map((todo) => {

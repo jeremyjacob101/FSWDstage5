@@ -1,12 +1,11 @@
 import { StrictMode, useState } from "react";
-import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
   Navigate,
+  Outlet,
   Route,
   Routes,
-  useParams,
   useNavigate,
 } from "react-router-dom";
 import {
@@ -14,68 +13,59 @@ import {
   LoginScreen,
   RegisterScreen,
 } from "./components/Auth";
-import { ProtectedRoute } from "./components/ProtectedRoute";
-import { AppShell } from "./components/AppShell";
+import { InfoModal, NavBar } from "./components/ui";
+import { ENTRYBASE_PENDING_REGISTRATION_KEY } from "./context/authStorageKeys";
+import { UserProvider } from "./context/userContext";
+import { useUser } from "./context/useUser";
 import type { User } from "./data/types";
 import { AlbumsPage } from "./pages/AlbumsPage";
 import { HomePage } from "./pages/HomePage";
 import { PhotosPage } from "./pages/PhotosPage";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
-import { ENTRYBASE_PENDING_REGISTRATION_KEY } from "./context/authStorageKeys";
-import { UserProvider } from "./context/userContext";
-import { useUser } from "./context/useUser";
+import {
+  ActiveUserRoute,
+  FallbackNavigate,
+  NavigateToCurrentUserAlbums,
+  NavigateToCurrentUserPosts,
+  NavigateToCurrentUserTodos,
+  ProtectedRoute,
+} from "./routes/navigationGuards";
 import "./App.css";
 import "./pages/css/Pages.css";
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <UserProvider>
-        <EntryBaseRoutes />
-      </UserProvider>
-    </BrowserRouter>
-  );
-}
-
-function EntryBaseRoutes() {
   const navigate = useNavigate();
   const { login } = useUser();
-  const savedPendingUser = localStorage.getItem(
-    ENTRYBASE_PENDING_REGISTRATION_KEY,
-  );
-  const [pendingRegistrationUser, setPendingRegistrationUser] =
-    useState<User | null>(() =>
-      savedPendingUser ? (JSON.parse(savedPendingUser) as User) : null,
-    );
-
-  const handleLogin = (nextUser: User) => {
-    setPendingRegistrationUser(null);
-    login(nextUser);
-  };
-
-  const startDetailsStep = (nextUser: User) => {
-    localStorage.setItem(
-      ENTRYBASE_PENDING_REGISTRATION_KEY,
-      JSON.stringify(nextUser),
-    );
-    setPendingRegistrationUser(nextUser);
-    navigate("/register/details");
-  };
 
   return (
     <Routes>
-      <Route path="/login" element={<LoginScreen onLogin={handleLogin} />} />
+      <Route path="/login" element={<LoginScreen onLogin={login} />} />
       <Route
         path="/register"
-        element={<RegisterScreen onRegistered={startDetailsStep} />}
+        element={
+          <RegisterScreen
+            onRegistered={(nextUser) => {
+              localStorage.setItem(
+                ENTRYBASE_PENDING_REGISTRATION_KEY,
+                JSON.stringify(nextUser),
+              );
+              navigate("/register/details");
+            }}
+          />
+        }
       />
       <Route
         path="/register/details"
         element={
           <CompleteRegistrationScreen
-            pendingUser={pendingRegistrationUser}
-            onLogin={handleLogin}
+            pendingUser={
+              JSON.parse(
+                localStorage.getItem(ENTRYBASE_PENDING_REGISTRATION_KEY) ??
+                  "null",
+              ) as User | null
+            }
+            onLogin={login}
           />
         }
       />
@@ -132,58 +122,34 @@ function EntryBaseRoutes() {
   );
 }
 
-function FallbackNavigate() {
-  const { user: maybeUser } = useUser();
-  return <Navigate to={maybeUser ? "/home" : "/login"} replace />;
-}
+function AppShell() {
+  const { user, logout } = useUser();
+  const [infoOpen, setInfoOpen] = useState(false);
+  const activeUser = user!;
 
-function NavigateToCurrentUserTodos() {
-  const { user: maybeUser } = useUser();
-  if (!maybeUser) {
-    return <Navigate to="/login" replace />;
-  }
-  return <Navigate to={`/users/${maybeUser.id}/todos`} replace />;
-}
-
-function NavigateToCurrentUserPosts() {
-  const { user: maybeUser } = useUser();
-  if (!maybeUser) {
-    return <Navigate to="/login" replace />;
-  }
-  return <Navigate to={`/users/${maybeUser.id}/posts`} replace />;
-}
-
-function NavigateToCurrentUserAlbums() {
-  const { user: maybeUser } = useUser();
-  if (!maybeUser) {
-    return <Navigate to="/login" replace />;
-  }
-  return <Navigate to={`/users/${maybeUser.id}/albums`} replace />;
-}
-
-function ActiveUserRoute({
-  section,
-  children,
-}: {
-  section: "todos" | "posts" | "albums";
-  children: ReactNode;
-}) {
-  const { user: maybeUser } = useUser();
-  const { userId } = useParams();
-
-  if (!maybeUser) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (Number(userId) !== maybeUser.id) {
-    return <Navigate to={`/users/${maybeUser.id}/${section}`} replace />;
-  }
-
-  return children;
+  return (
+    <div className="app-shell">
+      <NavBar
+        user={activeUser}
+        onInfo={() => setInfoOpen(true)}
+        onLogout={logout}
+      />
+      <main className="page-content">
+        <Outlet />
+      </main>
+      {infoOpen && (
+        <InfoModal user={activeUser} onClose={() => setInfoOpen(false)} />
+      )}
+    </div>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <UserProvider>
+        <App />
+      </UserProvider>
+    </BrowserRouter>
   </StrictMode>,
 );

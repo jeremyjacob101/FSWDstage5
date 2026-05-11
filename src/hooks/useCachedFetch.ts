@@ -4,24 +4,16 @@ import { useUser } from "../context/useUser";
 export interface CachedFetchResult<T> {
   data: T | null;
   loading: boolean;
-  error: string | null;
   updateCache: (newData: T) => void;
 }
 
-/**
- * Cached GET + localStorage. Cache read/write and network fetch run only when
- * the user is logged in and, if `resourceUserId` is passed, it matches `user.id`.
- */
-function useCachedFetch<T>(
-  url: string,
-): CachedFetchResult<T> {
+function useCachedFetch<T>(url: string): CachedFetchResult<T> {
   const { user } = useUser();
   const currentUserId = user?.id;
   const key = `cache:${url}`;
 
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,13 +21,10 @@ function useCachedFetch<T>(
     if (!currentUserId) {
       setData(null);
       setLoading(false);
-      setError(null);
       return () => {
         cancelled = true;
       };
     }
-
-    setError(null);
 
     try {
       const cached = localStorage.getItem(key);
@@ -77,10 +66,8 @@ function useCachedFetch<T>(
         if (!cancelled) {
           setData(fresh);
         }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Something went wrong");
-        }
+      } catch {
+        return;
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -103,11 +90,11 @@ function useCachedFetch<T>(
       localStorage.setItem(key, JSON.stringify(newData));
       setData(newData);
     } catch {
-      console.error("Cache update failed");
+      return;
     }
   }
 
-  return { data, loading, error, updateCache };
+  return { data, loading, updateCache };
 }
 
 export default useCachedFetch;

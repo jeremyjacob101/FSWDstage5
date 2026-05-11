@@ -69,7 +69,7 @@ function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
 }
 
 export function PhotosPage() {
-  const { albums, loadError } = useCachedUserAlbums();
+  const { albums } = useCachedUserAlbums();
   const { user: activeUser } = useUser();
   const navigate = useNavigate();
   const { albumId } = useParams();
@@ -81,7 +81,6 @@ export function PhotosPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isReadyForScrollRestore, setIsReadyForScrollRestore] = useState(false);
   const [pendingPhotoIds, setPendingPhotoIds] = useState<number[]>([]);
-  const [error, setError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadedAlbumIdRef = useRef<number | null>(null);
   const currentUserId = activeUser?.id ?? 0;
@@ -148,15 +147,11 @@ export function PhotosPage() {
 
     let isCurrent = true;
     const targetAlbumId = album.id;
-    const pagesToLoad = Math.min(
-      Math.max(1, loadedPages),
-      MAX_RESTORED_PAGES,
-    );
+    const pagesToLoad = Math.min(Math.max(1, loadedPages), MAX_RESTORED_PAGES);
 
     async function loadInitialPhotos() {
       setIsReadyForScrollRestore(false);
       setIsLoading(true);
-      setError("");
 
       try {
         const pageRequests = Array.from({ length: pagesToLoad }, (_, index) =>
@@ -172,9 +167,7 @@ export function PhotosPage() {
           setHasMorePhotos(lastPage.length === PHOTOS_PER_BATCH);
         }
       } catch {
-        if (isCurrent) {
-          setError("Could not load photos for this album.");
-        }
+        return;
       } finally {
         if (isCurrent) {
           setIsLoading(false);
@@ -226,7 +219,6 @@ export function PhotosPage() {
 
     const nextPage = page + 1;
     setIsLoading(true);
-    setError("");
 
     try {
       const nextPhotos = await getPhotosForAlbum(
@@ -243,7 +235,7 @@ export function PhotosPage() {
         loadedPages: Math.min(nextPage, MAX_RESTORED_PAGES),
       }));
     } catch {
-      setError("Could not load more photos. Please try again.");
+      return;
     } finally {
       setIsLoading(false);
     }
@@ -300,7 +292,6 @@ export function PhotosPage() {
     if (!title || !selectedAddPhotoUrl) return;
 
     try {
-      setError("");
       const photo = await createPhoto({
         albumId: album.id,
         title,
@@ -319,7 +310,7 @@ export function PhotosPage() {
         selectedAddPhotoUrl: nextChoices[0]?.url ?? "",
       }));
     } catch {
-      setError("Could not add the photo. Please try again.");
+      return;
     }
   };
 
@@ -344,7 +335,6 @@ export function PhotosPage() {
       draftTitle: photo.title,
       draftPhotoUrl: photo.url,
     }));
-    setError("");
   };
 
   const cancelEditingPhoto = () => {
@@ -371,7 +361,6 @@ export function PhotosPage() {
     if (!title || !draftPhotoUrl || pendingPhotoIds.includes(photo.id)) return;
 
     try {
-      setError("");
       setPendingPhotoIds((currentIds) => [...currentIds, photo.id]);
       const updatedPhoto = await updatePhoto(photo.id, {
         title,
@@ -385,7 +374,7 @@ export function PhotosPage() {
       );
       cancelEditingPhoto();
     } catch {
-      setError("Could not update the photo. Please try again.");
+      return;
     } finally {
       setPendingPhotoIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== photo.id),
@@ -397,7 +386,6 @@ export function PhotosPage() {
     if (pendingPhotoIds.includes(photo.id)) return;
 
     try {
-      setError("");
       setPendingPhotoIds((currentIds) => [...currentIds, photo.id]);
       await deletePhoto(photo.id);
       setPhotos((currentPhotos) =>
@@ -407,7 +395,7 @@ export function PhotosPage() {
         cancelEditingPhoto();
       }
     } catch {
-      setError("Could not delete the photo. Please try again.");
+      return;
     } finally {
       setPendingPhotoIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== photo.id),
@@ -487,12 +475,6 @@ export function PhotosPage() {
           ))}
         </div>
       </section>
-      {loadError && (
-        <p className="error-state">
-          Could not load albums list. Please make sure JSON-Server is running.
-        </p>
-      )}
-      {error && <p className="error-state">{error}</p>}
       <div className="photo-grid">
         {isLoading && !photos.length && (
           <EmptyState message="Loading photos..." />

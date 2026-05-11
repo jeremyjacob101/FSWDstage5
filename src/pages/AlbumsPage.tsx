@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/useUser";
@@ -25,10 +24,9 @@ const DEFAULT_ALBUMS_UI_STATE: AlbumsUiState = {
 };
 
 export function AlbumsPage() {
-  const { albums, setAlbums, isLoading, loadError } = useCachedUserAlbums();
+  const { albums, setAlbums, isLoading } = useCachedUserAlbums();
   const { user: activeUser } = useUser();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = buildUiStateKey(currentUserId, "albums");
   const scrollKey = buildScrollKey(currentUserId, "albums");
@@ -57,17 +55,12 @@ export function AlbumsPage() {
     const title = newTitle.trim();
     if (!title) return;
 
-    try {
-      setError("");
-      const album = await createAlbum({ userId: activeUser.id, title });
-      setAlbums((currentAlbums) => [album, ...currentAlbums]);
-      setUiState((currentState) => ({
-        ...currentState,
-        newTitle: "",
-      }));
-    } catch {
-      setError("Could not create the album. Please try again.");
-    }
+    const album = await createAlbum({ userId: activeUser.id, title });
+    setAlbums((currentAlbums) => [album, ...currentAlbums]);
+    setUiState((currentState) => ({
+      ...currentState,
+      newTitle: "",
+    }));
   };
 
   return (
@@ -101,12 +94,6 @@ export function AlbumsPage() {
         />
         <Button type="submit">New Album</Button>
       </form>
-      {loadError && (
-        <p className="error-state">
-          Could not load albums. Please make sure JSON-Server is running.
-        </p>
-      )}
-      {error && <p className="error-state">{error}</p>}
       <div className="album-grid">
         {isLoading && <EmptyState message="Loading albums..." />}
         {visibleAlbums.map((album) => (

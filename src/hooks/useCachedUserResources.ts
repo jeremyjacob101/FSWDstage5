@@ -21,32 +21,32 @@ export function useCachedUserTodos() {
   const { user } = useUser();
   const userId = user?.id;
   const url = resourceUrl(`/todos?userId=${userId ?? 0}`);
-  const { data, loading, error, updateCache } = useCachedFetch<Todo[]>(url);
+  const { data, loading, updateCache } = useCachedFetch<Todo[]>(url);
 
   const todos = data ?? [];
   const setTodos = createCacheSetter(data, updateCache);
 
-  return { todos, setTodos, isLoading: loading, loadError: error };
+  return { todos, setTodos, isLoading: loading };
 }
 
 export function useCachedUserPosts() {
   const url = resourceUrl("/posts");
-  const { data, loading, error, updateCache } = useCachedFetch<Post[]>(url);
+  const { data, loading, updateCache } = useCachedFetch<Post[]>(url);
 
   const posts = data ?? [];
   const setPosts = createCacheSetter(data, updateCache);
 
-  return { posts, setPosts, isLoading: loading, loadError: error };
+  return { posts, setPosts, isLoading: loading };
 }
 
 export function useCachedUserAlbums() {
   const { user } = useUser();
   const userId = user?.id;
   const url = resourceUrl(`/albums?userId=${userId ?? 0}`);
-  const { data, loading, error, updateCache } = useCachedFetch<Album[]>(url);
+  const { data, loading, updateCache } = useCachedFetch<Album[]>(url);
 
   const albums = data ?? [];
   const setAlbums = createCacheSetter(data, updateCache);
 
-  return { albums, setAlbums, isLoading: loading, loadError: error };
+  return { albums, setAlbums, isLoading: loading };
 }

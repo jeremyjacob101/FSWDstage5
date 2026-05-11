@@ -31,8 +31,6 @@ export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
 
     try {
       setIsSubmitting(true);
-
-      //What does user return?
       const user = await authenticateUser({
         username: cleanUsername,
         password,
@@ -45,9 +43,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
 
       setError("Incorrect username or password.");
     } catch {
-      setError(
-        "Could not reach the local server. Please start JSON-Server and try again.",
-      );
+      setError("Login failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -139,9 +135,7 @@ export function RegisterScreen({
 
       onRegistered(createdUser);
     } catch {
-      setError(
-        "Could not create the account. Please make sure JSON-Server is running.",
-      );
+      setError("Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -55,14 +55,13 @@ const DEFAULT_POSTS_UI_STATE: PostsUiState = {
 };
 
 export function PostsPage() {
-  const { posts, setPosts, isLoading, loadError } = useCachedUserPosts();
+  const { posts, setPosts, isLoading } = useCachedUserPosts();
   const { user: activeUser } = useUser();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [pendingPostIds, setPendingPostIds] = useState<number[]>([]);
   const [pendingCommentIds, setPendingCommentIds] = useState<number[]>([]);
-  const [error, setError] = useState("");
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = buildUiStateKey(currentUserId, "posts");
   const scrollKey = buildScrollKey(currentUserId, "posts");
@@ -126,7 +125,6 @@ export function PostsPage() {
 
     async function loadComments() {
       setIsLoadingComments(true);
-      setError("");
 
       try {
         const nextComments = await getCommentsForPost(selectedPost.id);
@@ -134,9 +132,7 @@ export function PostsPage() {
           setComments(nextComments);
         }
       } catch {
-        if (isCurrent) {
-          setError("Could not load comments for this post.");
-        }
+        return;
       } finally {
         if (isCurrent) {
           setIsLoadingComments(false);
@@ -244,7 +240,6 @@ export function PostsPage() {
     if (!title || !body || isCreatingPost) return;
 
     try {
-      setError("");
       setIsCreatingPost(true);
       const post = await createPost({
         userId: currentUserId,
@@ -261,7 +256,7 @@ export function PostsPage() {
         showComments: false,
       }));
     } catch {
-      setError("Could not create the post. Please try again.");
+      return;
     } finally {
       setIsCreatingPost(false);
     }
@@ -275,7 +270,6 @@ export function PostsPage() {
     if (!body || !selectedPost) return;
 
     try {
-      setError("");
       const comment = await createComment({
         postId: selectedPost.id,
         userId: currentUserId,
@@ -291,7 +285,7 @@ export function PostsPage() {
         showComments: true,
       }));
     } catch {
-      setError("Could not add the comment. Please try again.");
+      return;
     }
   };
 
@@ -305,7 +299,6 @@ export function PostsPage() {
       draftPostTitle: post.title,
       draftPostBody: post.body,
     }));
-    setError("");
   };
 
   const cancelEditingPost = () => {
@@ -325,7 +318,6 @@ export function PostsPage() {
       editingCommentId: comment.id,
       draftCommentBody: comment.body,
     }));
-    setError("");
   };
 
   const cancelEditingComment = () => {
@@ -347,7 +339,6 @@ export function PostsPage() {
     }
 
     try {
-      setError("");
       setPendingCommentIds((currentIds) => [...currentIds, comment.id]);
       const updatedComment = await updateComment(comment.id, { body });
 
@@ -358,7 +349,7 @@ export function PostsPage() {
       );
       cancelEditingComment();
     } catch {
-      setError("Could not update the comment. Please try again.");
+      return;
     } finally {
       setPendingCommentIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== comment.id),
@@ -372,7 +363,6 @@ export function PostsPage() {
     }
 
     try {
-      setError("");
       setPendingCommentIds((currentIds) => [...currentIds, comment.id]);
       await deleteComment(comment.id);
       setComments((currentComments) =>
@@ -384,7 +374,7 @@ export function PostsPage() {
         cancelEditingComment();
       }
     } catch {
-      setError("Could not delete the comment. Please try again.");
+      return;
     } finally {
       setPendingCommentIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== comment.id),
@@ -405,7 +395,6 @@ export function PostsPage() {
     }
 
     try {
-      setError("");
       setPendingPostIds((currentIds) => [...currentIds, post.id]);
       const updatedPost = await updatePost(post.id, { title, body });
 
@@ -416,7 +405,7 @@ export function PostsPage() {
       );
       cancelEditingPost();
     } catch {
-      setError("Could not update the post. Please try again.");
+      return;
     } finally {
       setPendingPostIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== post.id),
@@ -428,7 +417,6 @@ export function PostsPage() {
     if (!isOwnPost(post) || pendingPostIds.includes(post.id)) return;
 
     try {
-      setError("");
       setPendingPostIds((currentIds) => [...currentIds, post.id]);
       await deletePost(post.id);
       setPosts((currentPosts) => {
@@ -446,7 +434,7 @@ export function PostsPage() {
         cancelEditingPost();
       }
     } catch {
-      setError("Could not delete the post. Please try again.");
+      return;
     } finally {
       setPendingPostIds((currentIds) =>
         currentIds.filter((currentId) => currentId !== post.id),
@@ -533,12 +521,6 @@ export function PostsPage() {
           {isCreatingPost ? "Adding..." : "New Post"}
         </Button>
       </form>
-      {loadError && (
-        <p className="error-state">
-          Could not load posts. Please make sure JSON-Server is running.
-        </p>
-      )}
-      {error && <p className="error-state">{error}</p>}
       <div className="split-layout">
         <div className="post-list">
           {isLoading && <EmptyState message="Loading posts..." />}
