@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Photo } from "../data/types";
-import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
+import type { Album, Photo } from "../data/types";
+import { useCachedUserResources } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/useUser";
-import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
@@ -58,7 +57,7 @@ function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
 }
 
 export function PhotosPage() {
-  const { albums } = useCachedUserAlbums();
+  const { items: albums } = useCachedUserResources<Album>("albums");
   const { user: activeUser } = useUser();
   const navigate = useNavigate();
   const { albumId } = useParams();
@@ -83,8 +82,8 @@ export function PhotosPage() {
     (currentAlbum) => currentAlbum.id === selectedAlbumId,
   );
   const albumPageKey = `photos:album:${selectedAlbumId ?? "none"}`;
-  const uiStateKey = buildUiStateKey(currentUserId, albumPageKey);
-  const scrollKey = buildScrollKey(currentUserId, albumPageKey);
+  const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:${albumPageKey}`;
+  const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:${albumPageKey}`;
   const [uiState, setUiState] = usePersistentState<PhotosUiState>(
     uiStateKey,
     DEFAULT_PHOTOS_UI_STATE,

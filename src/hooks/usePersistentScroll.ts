@@ -1,38 +1,5 @@
 import { useEffect, useRef } from "react";
 
-const SCROLL_SAVE_INTERVAL_MS = 120;
-let didRestoreScrollForCurrentDocument = false;
-
-function readScrollY(key: string) {
-  if (typeof localStorage === "undefined") {
-    return null;
-  }
-
-  try {
-    const stored = localStorage.getItem(key);
-    if (!stored) {
-      return null;
-    }
-
-    const value = Number(stored);
-    if (!Number.isFinite(value) || value < 0) {
-      return null;
-    }
-
-    return value;
-  } catch {
-    return null;
-  }
-}
-
-function writeScrollY(key: string) {
-  try {
-    localStorage.setItem(key, String(window.scrollY));
-  } catch {
-    // storage might be unavailable or full; ignore
-  }
-}
-
 export function usePersistentScroll(key: string, enabled = true, ready = true) {
   const restoredKeyRef = useRef<string | null>(null);
 
@@ -41,42 +8,23 @@ export function usePersistentScroll(key: string, enabled = true, ready = true) {
       return;
     }
 
-    if (didRestoreScrollForCurrentDocument) {
-      if (restoredKeyRef.current !== key) {
-        const frameId = window.requestAnimationFrame(() => {
-          window.scrollTo(0, 0);
-        });
-        restoredKeyRef.current = key;
-        return () => {
-          window.cancelAnimationFrame(frameId);
-        };
-      }
-      restoredKeyRef.current = key;
-      return;
-    }
-
     if (restoredKeyRef.current === key) {
       return;
     }
 
-    const scrollY = readScrollY(key);
-    if (scrollY == null) {
-      didRestoreScrollForCurrentDocument = true;
-      restoredKeyRef.current = key;
-      return;
-    }
+    restoredKeyRef.current = key;
+    const stored = localStorage.getItem(key);
+    const value = stored == null ? NaN : Number(stored);
+    const targetY = Number.isFinite(value) && value >= 0 ? value : 0;
 
     let firstFrame = 0;
     let secondFrame = 0;
 
-    // Double RAF helps restore after async layout + hydrated content paint.
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
-        window.scrollTo(0, scrollY);
+        window.scrollTo(0, targetY);
       });
     });
-    didRestoreScrollForCurrentDocument = true;
-    restoredKeyRef.current = key;
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
@@ -89,30 +37,21 @@ export function usePersistentScroll(key: string, enabled = true, ready = true) {
       return;
     }
 
-    let lastSavedAt = 0;
     let frameId = 0;
 
     const onScroll = () => {
-      const now = performance.now();
-      if (now - lastSavedAt >= SCROLL_SAVE_INTERVAL_MS) {
-        lastSavedAt = now;
-        writeScrollY(key);
-        return;
-      }
-
       if (frameId !== 0) {
         return;
       }
 
       frameId = window.requestAnimationFrame(() => {
         frameId = 0;
-        lastSavedAt = performance.now();
-        writeScrollY(key);
+        localStorage.setItem(key, String(window.scrollY));
       });
     };
 
     const onBeforeUnload = () => {
-      writeScrollY(key);
+      localStorage.setItem(key, String(window.scrollY));
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -124,7 +63,7 @@ export function usePersistentScroll(key: string, enabled = true, ready = true) {
       if (frameId !== 0) {
         window.cancelAnimationFrame(frameId);
       }
-      writeScrollY(key);
+      localStorage.setItem(key, String(window.scrollY));
     };
   }, [enabled, key, ready]);
 }

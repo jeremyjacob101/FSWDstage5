@@ -1,5 +1,5 @@
 import type { Album, Comment, Photo, Post, Todo, User } from "../data/types";
-import { getNextNumericId, request, writeOptions } from "./helpers";
+import { request, writeOptions } from "./helpers";
 import type { CommentUpdates, NewAlbum, NewComment, NewPhoto, NewPost, NewTodo, NewUserDetails, PhotoUpdates, PostUpdates, TodoUpdates } from "./apiTypes";
 
 export async function findUserByUsername(
@@ -71,11 +71,9 @@ export function getTodosForUser(userId: number): Promise<Todo[]> {
 
 export async function createTodo(todo: NewTodo): Promise<Todo> {
   const currentTodos = await request<Todo[]>("/todos");
+  const nextId = Math.max(0, ...currentTodos.map((item) => item.id)) + 1;
 
-  return request<Todo>(
-    "/todos",
-    writeOptions("POST", { ...todo, id: getNextNumericId(currentTodos) }),
-  );
+  return request<Todo>("/todos", writeOptions("POST", { ...todo, id: nextId }));
 }
 
 export function updateTodo(
@@ -95,11 +93,9 @@ export function getPostsForUser(userId: number): Promise<Post[]> {
 
 export async function createPost(post: NewPost): Promise<Post> {
   const currentPosts = await request<Post[]>("/posts");
+  const nextId = Math.max(0, ...currentPosts.map((item) => item.id)) + 1;
 
-  return request<Post>(
-    "/posts",
-    writeOptions("POST", { ...post, id: getNextNumericId(currentPosts) }),
-  );
+  return request<Post>("/posts", writeOptions("POST", { ...post, id: nextId }));
 }
 
 export function updatePost(
@@ -139,8 +135,14 @@ export function getAlbumsForUser(userId: number): Promise<Album[]> {
   return request<Album[]>(`/albums?userId=${userId}`);
 }
 
-export function createAlbum(album: NewAlbum): Promise<Album> {
-  return request<Album>("/albums", writeOptions("POST", album));
+export async function createAlbum(album: NewAlbum): Promise<Album> {
+  const currentAlbums = await request<Album[]>("/albums");
+  const nextId = Math.max(0, ...currentAlbums.map((item) => item.id)) + 1;
+
+  return request<Album>(
+    "/albums",
+    writeOptions("POST", { ...album, id: nextId }),
+  );
 }
 
 export function getPhotosForAlbum(
@@ -153,8 +155,14 @@ export function getPhotosForAlbum(
   );
 }
 
-export function createPhoto(photo: NewPhoto): Promise<Photo> {
-  return request<Photo>("/photos", writeOptions("POST", photo));
+export async function createPhoto(photo: NewPhoto): Promise<Photo> {
+  const currentPhotos = await request<Photo[]>("/photos");
+  const nextId = Math.max(0, ...currentPhotos.map((item) => item.id)) + 1;
+
+  return request<Photo>(
+    "/photos",
+    writeOptions("POST", { ...photo, id: nextId }),
+  );
 }
 
 export function updatePhoto(

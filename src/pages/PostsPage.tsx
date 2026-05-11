@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Comment, Post } from "../data/types";
-import { useCachedUserPosts } from "../hooks/useCachedUserResources";
+import { useCachedUserResources } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/useUser";
-import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
@@ -41,7 +40,11 @@ const DEFAULT_POSTS_UI_STATE: PostsUiState = {
 };
 
 export function PostsPage() {
-  const { posts, setPosts, isLoading } = useCachedUserPosts();
+  const {
+    items: posts,
+    setItems: setPosts,
+    isLoading,
+  } = useCachedUserResources<Post>("posts", false);
   const { user: activeUser } = useUser();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -49,8 +52,8 @@ export function PostsPage() {
   const [pendingPostIds, setPendingPostIds] = useState<number[]>([]);
   const [pendingCommentIds, setPendingCommentIds] = useState<number[]>([]);
   const currentUserId = activeUser?.id ?? 0;
-  const uiStateKey = buildUiStateKey(currentUserId, "posts");
-  const scrollKey = buildScrollKey(currentUserId, "posts");
+  const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:posts`;
+  const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:posts`;
   const [uiState, setUiState] = usePersistentState<PostsUiState>(
     uiStateKey,
     DEFAULT_POSTS_UI_STATE,

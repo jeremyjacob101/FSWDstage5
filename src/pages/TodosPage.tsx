@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Todo } from "../data/types";
-import { useCachedUserTodos } from "../hooks/useCachedUserResources";
+import { useCachedUserResources } from "../hooks/useCachedUserResources";
 import { useUser } from "../context/useUser";
-import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
@@ -27,13 +26,17 @@ const DEFAULT_TODOS_UI_STATE: TodosUiState = {
 };
 
 export function TodosPage() {
-  const { todos, setTodos, isLoading } = useCachedUserTodos();
+  const {
+    items: todos,
+    setItems: setTodos,
+    isLoading,
+  } = useCachedUserResources<Todo>("todos");
   const { user: activeUser } = useUser();
   const [pendingTodoIds, setPendingTodoIds] = useState<number[]>([]);
   const [isCreatingTodo, setIsCreatingTodo] = useState(false);
   const currentUserId = activeUser?.id ?? 0;
-  const uiStateKey = buildUiStateKey(currentUserId, "todos");
-  const scrollKey = buildScrollKey(currentUserId, "todos");
+  const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:todos`;
+  const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:todos`;
   const [uiState, setUiState] = usePersistentState<TodosUiState>(
     uiStateKey,
     DEFAULT_TODOS_UI_STATE,

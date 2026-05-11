@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 import { CompleteRegistrationScreen, LoginScreen, RegisterScreen } from "./components/Auth";
 import { InfoModal, NavBar } from "./components/ui";
-import { ENTRYBASE_PENDING_REGISTRATION_KEY } from "./context/authStorageKeys";
 import { UserProvider } from "./context/userContext";
 import { useUser } from "./context/useUser";
 import type { User } from "./data/types";
@@ -29,7 +28,7 @@ export default function App() {
           <RegisterScreen
             onRegistered={(nextUser) => {
               localStorage.setItem(
-                ENTRYBASE_PENDING_REGISTRATION_KEY,
+                "entryBasePendingRegistration",
                 JSON.stringify(nextUser),
               );
               navigate("/register/details");
@@ -43,8 +42,7 @@ export default function App() {
           <CompleteRegistrationScreen
             pendingUser={
               JSON.parse(
-                localStorage.getItem(ENTRYBASE_PENDING_REGISTRATION_KEY) ??
-                  "null",
+                localStorage.getItem("entryBasePendingRegistration") ?? "null",
               ) as User | null
             }
             onLogin={login}
