@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
-import { useUser } from "../context/userContext";
+import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";

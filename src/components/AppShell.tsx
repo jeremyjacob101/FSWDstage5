@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { User } from "../data/types";
-import { useUser } from "../context/userContext";
+import { useUser } from "../context/useUser";
 import { Button } from "./ui";
 
 export function AppShell({ notice }: { notice?: string }) {

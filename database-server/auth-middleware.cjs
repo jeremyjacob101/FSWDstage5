@@ -6,224 +6,39 @@ const {
   toSingle,
 } = require("./helpers.js");
 
-function ensureOwnUserRoute(req, res, currentUserId, resourceId) {
-  if (resourceId == null) {
-    return rejectForbidden(res, "User collection access is not allowed");
-  }
-  if (resourceId !== currentUserId) {
-    return rejectForbidden(res, "Cannot access another user's profile");
-  }
-  return null;
-}
-
-function ensureOwnDirectResource(
-  req,
-  res,
-  currentUserId,
-  resource,
-  resourceId,
-) {
-  if (resourceId == null) {
-    if (req.method === "GET") {
-      req.query.userId = String(currentUserId);
-      return null;
-    }
-    if (req.method === "POST") {
-      req.body = {
-        ...(req.body ?? {}),
-        userId: currentUserId,
-      };
-      return null;
-    }
-    return rejectForbidden(res, "Operation not allowed");
+function ensureOwnedRecord(req, res, collection, id, currentUserId, message) {
+  if (id == null) {
+    return true;
   }
 
-  const record = findById(req, resource, resourceId);
+  const record = findById(req, collection, id);
   if (!record) {
-    return null;
+    return true;
   }
+
   if (Number(record.userId) !== currentUserId) {
-    return rejectForbidden(res, "Cannot access another user's data");
+    rejectForbidden(res, message);
+    return false;
   }
 
-  if (req.method === "PATCH" && req.body?.userId != null) {
-    req.body = {
-      ...(req.body ?? {}),
-      userId: currentUserId,
-    };
-  }
-
-  return null;
+  return true;
 }
 
-function ensureOwnAlbum(req, res, currentUserId, albumId) {
+function ensureOwnedAlbum(req, res, currentUserId, albumId) {
   const album = findById(req, "albums", albumId);
   if (!album) {
-    return res.status(404).json({ message: "Album not found" });
+    res.status(404).json({ message: "Album not found" });
+    return false;
   }
+
   if (Number(album.userId) !== currentUserId) {
-    return rejectForbidden(res, "Cannot access another user's album");
+    rejectForbidden(res, "Cannot access another user's album");
+    return false;
   }
-  return null;
+
+  return true;
 }
 
-function ensureOwnPost(req, res, currentUserId, postId) {
-  const post = findById(req, "posts", postId);
-  if (!post) {
-    return res.status(404).json({ message: "Post not found" });
-  }
-  if (Number(post.userId) !== currentUserId) {
-    return rejectForbidden(res, "Cannot access another user's post");
-  }
-  return null;
-}
-
-function ensurePostResource(req, res, currentUserId, resourceId) {
-  if (resourceId == null) {
-    if (req.method === "GET") {
-      return null;
-    }
-    if (req.method === "POST") {
-      req.body = {
-        ...(req.body ?? {}),
-        userId: currentUserId,
-      };
-      return null;
-    }
-    return rejectForbidden(res, "Operation not allowed");
-  }
-
-  const post = findById(req, "posts", resourceId);
-  if (!post) {
-    return null;
-  }
-
-  if (req.method === "GET") {
-    return null;
-  }
-
-  if (Number(post.userId) !== currentUserId) {
-    return rejectForbidden(res, "Cannot modify another user's post");
-  }
-
-  if (req.method === "PATCH" && req.body?.userId != null) {
-    req.body = {
-      ...(req.body ?? {}),
-      userId: currentUserId,
-    };
-  }
-
-  return null;
-}
-
-function isOwnComment(comment, currentUserId) {
-  return Number(comment?.userId) === currentUserId;
-}
-
-function ensureOwnPhotoResource(req, res, currentUserId, resourceId) {
-  if (resourceId == null) {
-    const albumId =
-      req.method === "GET"
-        ? parsePositiveInt(toSingle(req.query.albumId))
-        : parsePositiveInt(req.body?.albumId);
-    if (albumId == null) {
-      return rejectForbidden(res, "albumId is required");
-    }
-    return ensureOwnAlbum(req, res, currentUserId, albumId);
-  }
-
-  const photo = findById(req, "photos", resourceId);
-  if (!photo) {
-    return null;
-  }
-
-  const byExistingAlbum = ensureOwnAlbum(
-    req,
-    res,
-    currentUserId,
-    Number(photo.albumId),
-  );
-  if (byExistingAlbum) {
-    return byExistingAlbum;
-  }
-
-  if (req.method === "PATCH" && req.body?.albumId != null) {
-    const nextAlbumId = parsePositiveInt(req.body.albumId);
-    if (nextAlbumId == null) {
-      return rejectForbidden(res, "albumId must be a positive integer");
-    }
-    return ensureOwnAlbum(req, res, currentUserId, nextAlbumId);
-  }
-
-  return null;
-}
-
-function ensureOwnCommentResource(
-  req,
-  res,
-  currentUser,
-  currentUserId,
-  resourceId,
-) {
-  if (resourceId == null) {
-    const postId =
-      req.method === "GET"
-        ? parsePositiveInt(toSingle(req.query.postId))
-        : parsePositiveInt(req.body?.postId);
-    if (postId == null) {
-      return rejectForbidden(res, "postId is required");
-    }
-
-    const post = findById(req, "posts", postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    if (req.method === "POST") {
-      req.body = {
-        ...(req.body ?? {}),
-        userId: currentUserId,
-        email: currentUser.email,
-        name: currentUser.name,
-      };
-    }
-
-    return null;
-  }
-
-  const comment = findById(req, "comments", resourceId);
-  if (!comment) {
-    return null;
-  }
-
-  if (req.method === "GET") {
-    return null;
-  }
-
-  if (!isOwnComment(comment, currentUserId)) {
-    return rejectForbidden(res, "Cannot modify another user's comment");
-  }
-
-  if (req.method === "PATCH" && req.body?.postId != null) {
-    req.body = {
-      ...(req.body ?? {}),
-      postId: Number(comment.postId),
-    };
-  }
-
-  if (req.method === "PATCH") {
-    req.body = {
-      ...(req.body ?? {}),
-      userId: currentUserId,
-      email: currentUser.email,
-      name: currentUser.name,
-    };
-  }
-
-  return null;
-}
-
-/** Enforce user ownership across resources. */
 module.exports = function authMiddleware(req, res, next) {
   if (req.method === "OPTIONS") {
     return next();
@@ -234,13 +49,13 @@ module.exports = function authMiddleware(req, res, next) {
   const resource = segments[0] ?? "";
   const resourceId = parsePositiveInt(segments[1]);
 
-  const isLoginLookup =
+  const isAuthLookup =
     req.method === "GET" &&
     (path === "/users" || path === "/login") &&
     typeof toSingle(req.query.username) === "string";
   const isRegistration =
     req.method === "POST" && (path === "/users" || path === "/register");
-  if (isLoginLookup || isRegistration) {
+  if (isAuthLookup || isRegistration) {
     return next();
   }
 
@@ -255,44 +70,142 @@ module.exports = function authMiddleware(req, res, next) {
   }
 
   if (resource === "users") {
-    const result = ensureOwnUserRoute(req, res, currentUserId, resourceId);
-    if (result) return result;
+    if (resourceId == null || resourceId !== currentUserId) {
+      return rejectForbidden(res, "Cannot access another user's profile");
+    }
     return next();
   }
 
   if (resource === "todos" || resource === "albums") {
-    const result = ensureOwnDirectResource(
+    if (req.method === "GET") {
+      req.query.userId = String(currentUserId);
+      return next();
+    }
+
+    if (req.method === "POST") {
+      req.body = { ...(req.body ?? {}), userId: currentUserId };
+      return next();
+    }
+
+    const isAllowed = ensureOwnedRecord(
       req,
       res,
-      currentUserId,
       resource,
       resourceId,
+      currentUserId,
+      "Cannot access another user's data",
     );
-    if (result) return result;
+    if (!isAllowed) {
+      return;
+    }
+
+    if (req.method === "PATCH") {
+      req.body = { ...(req.body ?? {}), userId: currentUserId };
+    }
+
     return next();
   }
 
   if (resource === "posts") {
-    const result = ensurePostResource(req, res, currentUserId, resourceId);
-    if (result) return result;
+    if (req.method === "POST") {
+      req.body = { ...(req.body ?? {}), userId: currentUserId };
+      return next();
+    }
+
+    if (req.method === "PATCH" || req.method === "DELETE") {
+      const isAllowed = ensureOwnedRecord(
+        req,
+        res,
+        "posts",
+        resourceId,
+        currentUserId,
+        "Cannot modify another user's post",
+      );
+      if (!isAllowed) {
+        return;
+      }
+
+      if (req.method === "PATCH") {
+        req.body = { ...(req.body ?? {}), userId: currentUserId };
+      }
+    }
+
     return next();
   }
 
   if (resource === "photos") {
-    const result = ensureOwnPhotoResource(req, res, currentUserId, resourceId);
-    if (result) return result;
+    if (resourceId == null) {
+      const albumId = parsePositiveInt(
+        req.method === "GET" ? toSingle(req.query.albumId) : req.body?.albumId,
+      );
+      if (albumId == null) {
+        return rejectForbidden(res, "albumId is required");
+      }
+
+      const isAllowed = ensureOwnedAlbum(req, res, currentUserId, albumId);
+      if (!isAllowed) {
+        return;
+      }
+
+      return next();
+    }
+
+    const photo = findById(req, "photos", resourceId);
+    if (photo) {
+      const isAllowed = ensureOwnedAlbum(
+        req,
+        res,
+        currentUserId,
+        Number(photo.albumId),
+      );
+      if (!isAllowed) {
+        return;
+      }
+    }
+
+    if (req.method === "PATCH" && req.body?.albumId != null) {
+      const nextAlbumId = parsePositiveInt(req.body.albumId);
+      if (nextAlbumId == null) {
+        return rejectForbidden(res, "albumId must be a positive integer");
+      }
+
+      const isAllowed = ensureOwnedAlbum(req, res, currentUserId, nextAlbumId);
+      if (!isAllowed) {
+        return;
+      }
+    }
+
     return next();
   }
 
   if (resource === "comments") {
-    const result = ensureOwnCommentResource(
-      req,
-      res,
-      currentUser,
-      currentUserId,
-      resourceId,
-    );
-    if (result) return result;
+    if (req.method === "POST") {
+      req.body = {
+        ...(req.body ?? {}),
+        userId: currentUserId,
+        email: currentUser.email,
+        name: currentUser.name,
+      };
+      return next();
+    }
+
+    if (req.method === "PATCH" || req.method === "DELETE") {
+      const comment = findById(req, "comments", resourceId);
+      if (comment && Number(comment.userId) !== currentUserId) {
+        return rejectForbidden(res, "Cannot modify another user's comment");
+      }
+
+      if (req.method === "PATCH") {
+        req.body = {
+          ...(req.body ?? {}),
+          userId: currentUserId,
+          email: currentUser.email,
+          name: currentUser.name,
+          ...(comment ? { postId: Number(comment.postId) } : {}),
+        };
+      }
+    }
+
     return next();
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Comment, Post } from "../data/types";
 import { useCachedUserPosts } from "../hooks/useCachedUserResources";
-import { useUser } from "../context/userContext";
+import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";

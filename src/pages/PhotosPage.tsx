@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Photo } from "../data/types";
 import { useCachedUserAlbums } from "../hooks/useCachedUserResources";
-import { useUser } from "../context/userContext";
+import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
@@ -124,6 +124,7 @@ export function PhotosPage() {
   const [pendingPhotoIds, setPendingPhotoIds] = useState<number[]>([]);
   const [error, setError] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadedAlbumIdRef = useRef<number | null>(null);
   const currentUserId = activeUser?.id ?? 0;
 
   const albumIdParam = parsePositiveInt(albumId);
@@ -175,8 +176,14 @@ export function PhotosPage() {
 
   useEffect(() => {
     if (!album) {
+      loadedAlbumIdRef.current = null;
       return;
     }
+
+    if (loadedAlbumIdRef.current === album.id) {
+      return;
+    }
+    loadedAlbumIdRef.current = album.id;
 
     let isCurrent = true;
     const targetAlbumId = album.id;
@@ -217,10 +224,7 @@ export function PhotosPage() {
     return () => {
       isCurrent = false;
     };
-    // `loadedPages` is intentionally read as the currently persisted depth for
-    // the active album key when this album view mounts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [album?.id]);
+  }, [album, loadedPages]);
 
   useEffect(() => {
     setUiState((currentState) => {
@@ -249,9 +253,7 @@ export function PhotosPage() {
     return preservedUrl
       ? [{ seed: editingPhotoId, url: preservedUrl }, ...fallbackChoices]
       : fallbackChoices;
-    // Keep hydrated choices stable while editing after refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editPhotoChoices.length, editingPhotoId, photos]);
+  }, [draftPhotoUrl, editPhotoChoices.length, editingPhotoId, photos]);
 
   const loadMorePhotos = useCallback(async () => {
     if (!album || isLoading || !hasMorePhotos) {

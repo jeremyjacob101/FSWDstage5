@@ -1,5 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- useUser is a hook; UserContext is not exported (HMR-friendly). */
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import useLocalStorage from "../hooks/useLocalStorage";
 import type { User } from "../data/types";
@@ -7,14 +6,7 @@ import {
   ENTRYBASE_PENDING_REGISTRATION_KEY,
   ENTRYBASE_USER_KEY,
 } from "./authStorageKeys";
-
-export interface UserContextValue {
-  user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
-}
-
-const UserContext = createContext<UserContextValue | null>(null);
+import { UserContext } from "./userContextCore";
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -39,12 +31,4 @@ export function UserProvider({ children }: { children: ReactNode }) {
       {children}
     </UserContext.Provider>
   );
-}
-
-export function useUser() {
-  const context = useContext(UserContext);
-  if (!context) {
-    throw new Error("useUser must be used inside a UserProvider");
-  }
-  return context;
 }

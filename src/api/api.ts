@@ -13,10 +13,6 @@ import type {
   TodoUpdates,
 } from "./apiTypes";
 
-// finds a user by username
-// parameters: username(string)
-// returns: Promise(User)
-// Passes the users path with url safety.
 export async function findUserByUsername(
   username: string,
 ): Promise<User | null> {
@@ -27,10 +23,6 @@ export async function findUserByUsername(
   return users[0] ?? null;
 }
 
-// Authenticate users
-// parameters: username(string), password(string)
-// returns: Promise(User | null )
-// Finds a user by Username and checks if the password matches
 export async function authenticateUser({
   username,
   password,

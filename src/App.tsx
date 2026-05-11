@@ -23,7 +23,8 @@ import { PhotosPage } from "./pages/PhotosPage";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
 import { ENTRYBASE_PENDING_REGISTRATION_KEY } from "./context/authStorageKeys";
-import { UserProvider, useUser } from "./context/userContext";
+import { UserProvider } from "./context/userContext";
+import { useUser } from "./context/useUser";
 import "./App.css";
 import "./pages/css/Pages.css";
 

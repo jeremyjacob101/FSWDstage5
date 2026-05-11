@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useUser } from "../context/userContext";
+import { useUser } from "../context/useUser";
 
 export interface CachedFetchResult<T> {
   data: T | null;
@@ -26,7 +26,6 @@ function useCachedFetch<T>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- sync from auth + localStorage + network */
   useEffect(() => {
     let cancelled = false;
 
@@ -54,7 +53,7 @@ function useCachedFetch<T>(
         };
       }
     } catch {
-      // bad cache — fetch fresh
+      localStorage.removeItem(key);
     }
 
     if (!cancelled) {
@@ -98,7 +97,6 @@ function useCachedFetch<T>(
       cancelled = true;
     };
   }, [url, key, isAuthorized, currentUserId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function updateCache(newData: T) {
     if (!isAuthorized) {
