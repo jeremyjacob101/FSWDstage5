@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { CompleteRegistrationScreen, LoginScreen, RegisterScreen } from "./components/Auth";
-import { UserProvider } from "./context/userContext";
+import { UserProvider } from "./context/UserProvider";
 import type { UserRouteProps } from "./types/route";
 import { InfoModal, NavBar } from "./components/Shared";
 import { AlbumsPage } from "./pages/AlbumsPage";
@@ -9,7 +9,7 @@ import { createRoot } from "react-dom/client";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
 import { StrictMode, useState } from "react";
-import { useUser } from "./context/useUser";
+import { useUser } from "./context/user";
 import type { User } from "./types/general";
 import { HomePage } from "./pages/HomePage";
 import "./App.css";

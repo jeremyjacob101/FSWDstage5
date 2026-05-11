@@ -5,7 +5,7 @@ import { usePersistentState } from "../hooks/usePersistentState";
 import { useNavigate } from "react-router-dom";
 import type { Album } from "../types/general";
 import type { AlbumsUiState } from "../types/state";
-import { useUser } from "../context/useUser";
+import { useUser } from "../context/user";
 import { createAlbum } from "../api/api";
 
 export function AlbumsPage() {

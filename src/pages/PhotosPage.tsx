@@ -9,7 +9,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { Album, Photo } from "../types/general";
 import type { PhotosUiState } from "../types/state";
 import type { PhotoChoice } from "../types/page";
-import { useUser } from "../context/useUser";
+import { useUser } from "../context/user";
 
 function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
   const usedSeeds = new Set<number>();

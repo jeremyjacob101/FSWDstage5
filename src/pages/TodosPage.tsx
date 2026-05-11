@@ -6,7 +6,7 @@ import { createTodo, deleteTodo, updateTodo } from "../api/api";
 import type { TodosUiState } from "../types/state";
 import type { TodoSort } from "../types/page";
 import type { Todo } from "../types/general";
-import { useUser } from "../context/useUser";
+import { useUser } from "../context/user";
 import { useEffect, useState } from "react";
 
 export function TodosPage() {

@@ -1,5 +1,5 @@
 import useLocalStorage from "../hooks/useLocalStorage";
-import { UserContext } from "./userContextCore";
+import { UserContext } from "./user";
 import { useNavigate } from "react-router-dom";
 import type { User } from "../types/general";
 import type { ReactNode } from "react";

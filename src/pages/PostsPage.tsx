@@ -6,7 +6,7 @@ import { usePersistentState } from "../hooks/usePersistentState";
 import type { Comment, Post } from "../types/general";
 import type { PostsUiState } from "../types/state";
 import { useEffect, useMemo, useState } from "react";
-import { useUser } from "../context/useUser";
+import { useUser } from "../context/user";
 
 export function PostsPage() {
   const {

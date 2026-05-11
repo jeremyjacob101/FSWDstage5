@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import useCachedFetch from "./useCachedFetch";
-import { useUser } from "../context/useUser";
+import { useUser } from "../context/user";
 import { API_BASE_URL } from "../api/api";
 
 export function useCachedUserResources<T>(
