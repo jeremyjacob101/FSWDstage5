@@ -2,9 +2,9 @@ import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../compo
 import { useCachedUserResources } from "../hooks/useCachedUserResources";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
+import type { AlbumsUiState } from "../types/state";
 import { useNavigate } from "react-router-dom";
 import type { Album } from "../types/general";
-import type { AlbumsUiState } from "../types/state";
 import { useUser } from "../context/user";
 import { createAlbum } from "../api/api";
 

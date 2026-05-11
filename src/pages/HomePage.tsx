@@ -1,6 +1,6 @@
+import { DashboardCard } from "../components/Shared";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/user";
-import { DashboardCard } from "../components/Shared";
 
 export function HomePage() {
   const navigate = useNavigate();

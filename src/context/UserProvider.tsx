@@ -1,8 +1,8 @@
 import useLocalStorage from "../hooks/useLocalStorage";
-import { UserContext } from "./user";
 import { useNavigate } from "react-router-dom";
 import type { User } from "../types/general";
 import type { ReactNode } from "react";
+import { UserContext } from "./user";
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();

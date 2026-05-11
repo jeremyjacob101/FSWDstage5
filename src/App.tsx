@@ -1,17 +1,17 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { CompleteRegistrationScreen, LoginScreen, RegisterScreen } from "./components/Auth";
+import { InfoModal, NavBar } from "./components/Shared";
 import { UserProvider } from "./context/UserProvider";
 import type { UserRouteProps } from "./types/route";
-import { InfoModal, NavBar } from "./components/Shared";
 import { AlbumsPage } from "./pages/AlbumsPage";
 import { PhotosPage } from "./pages/PhotosPage";
 import { createRoot } from "react-dom/client";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
 import { StrictMode, useState } from "react";
-import { useUser } from "./context/user";
 import type { User } from "./types/general";
 import { HomePage } from "./pages/HomePage";
+import { useUser } from "./context/user";
 import "./App.css";
 
 export default function App() {
