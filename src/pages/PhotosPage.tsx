@@ -30,22 +30,20 @@ function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
 }
 
 export function PhotosPage() {
-  const { items: albums } = useCachedUserResources<Album>("albums");
-  const { user: activeUser } = useUser();
-  const navigate = useNavigate();
-  const { albumId } = useParams();
-  const [addPhotoChoices, setAddPhotoChoices] = useState(createPhotoChoices);
-  const [editPhotoChoices, setEditPhotoChoices] = useState<PhotoChoice[]>([]);
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMorePhotos, setHasMorePhotos] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isReadyForScrollRestore, setIsReadyForScrollRestore] = useState(false);
+  const [editPhotoChoices, setEditPhotoChoices] = useState<PhotoChoice[]>([]);
+  const [addPhotoChoices, setAddPhotoChoices] = useState(createPhotoChoices);
   const [pendingPhotoIds, setPendingPhotoIds] = useState<number[]>([]);
+  const { items: albums } = useCachedUserResources<Album>("albums");
+  const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadedAlbumIdRef = useRef<number | null>(null);
-  const currentUserId = activeUser?.id ?? 0;
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const { user: activeUser } = useUser();
+  const [page, setPage] = useState(1);
+  const { albumId } = useParams();
+  const navigate = useNavigate();
   const parsedAlbumId = Number(albumId);
   const selectedAlbumId =
     Number.isInteger(parsedAlbumId) && parsedAlbumId > 0
@@ -54,6 +52,8 @@ export function PhotosPage() {
   const album = albums.find(
     (currentAlbum) => currentAlbum.id === selectedAlbumId,
   );
+
+  const currentUserId = activeUser?.id ?? 0;
   const albumPageKey = `photos:album:${selectedAlbumId ?? "none"}`;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:${albumPageKey}`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:${albumPageKey}`;
@@ -66,24 +66,15 @@ export function PhotosPage() {
     draftPhotoUrl: "",
     loadedPages: 1,
   });
+
   usePersistentScroll(
     scrollKey,
     Boolean(activeUser),
     isReadyForScrollRestore && !isLoading,
   );
 
-  const {
-    search,
-    newTitle,
-    selectedAddPhotoUrl,
-    editingPhotoId,
-    draftTitle,
-    draftPhotoUrl,
-    loadedPages,
-  } = uiState;
-
   const visiblePhotos = photos.filter((photo) => {
-    const query = search.toLowerCase().trim();
+    const query = uiState.search.toLowerCase().trim();
     return (
       String(photo.id).includes(query) ||
       photo.title.toLowerCase().includes(query)
@@ -91,14 +82,14 @@ export function PhotosPage() {
   });
 
   useEffect(() => {
-    if (selectedAddPhotoUrl || !addPhotoChoices.length) {
+    if (uiState.selectedAddPhotoUrl || !addPhotoChoices.length) {
       return;
     }
     setUiState((currentState) => ({
       ...currentState,
       selectedAddPhotoUrl: addPhotoChoices[0]?.url ?? "",
     }));
-  }, [addPhotoChoices, selectedAddPhotoUrl, setUiState]);
+  }, [addPhotoChoices, uiState.selectedAddPhotoUrl, setUiState]);
 
   useEffect(() => {
     if (!album) {
@@ -114,7 +105,7 @@ export function PhotosPage() {
     let isCurrent = true;
     const targetAlbumId = album.id;
     const pagesToLoad = Math.min(
-      Math.max(1, loadedPages),
+      Math.max(1, uiState.loadedPages),
       PHOTOS_MAX_RESTORED_PAGES,
     );
 
@@ -149,7 +140,7 @@ export function PhotosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [album, loadedPages]);
+  }, [album, uiState.loadedPages]);
 
   useEffect(() => {
     setUiState((currentState) => {
@@ -169,16 +160,26 @@ export function PhotosPage() {
   }, [photos, setUiState]);
 
   const hydratedEditPhotoChoices = useMemo(() => {
-    if (editingPhotoId == null || editPhotoChoices.length > 0) {
+    if (uiState.editingPhotoId == null || editPhotoChoices.length > 0) {
       return [] as PhotoChoice[];
     }
-    const editingPhoto = photos.find((photo) => photo.id === editingPhotoId);
-    const preservedUrl = draftPhotoUrl || editingPhoto?.url || "";
+    const editingPhoto = photos.find(
+      (photo) => photo.id === uiState.editingPhotoId,
+    );
+    const preservedUrl = uiState.draftPhotoUrl || editingPhoto?.url || "";
     const fallbackChoices = createPhotoChoices(PHOTO_CHOICES - 1);
     return preservedUrl
-      ? [{ seed: editingPhotoId, url: preservedUrl }, ...fallbackChoices]
+      ? [
+          { seed: uiState.editingPhotoId, url: preservedUrl },
+          ...fallbackChoices,
+        ]
       : fallbackChoices;
-  }, [draftPhotoUrl, editPhotoChoices.length, editingPhotoId, photos]);
+  }, [
+    uiState.draftPhotoUrl,
+    editPhotoChoices.length,
+    uiState.editingPhotoId,
+    photos,
+  ]);
 
   const loadMorePhotos = useCallback(async () => {
     if (!album || isLoading || !hasMorePhotos) {
@@ -256,14 +257,14 @@ export function PhotosPage() {
 
   const addPhoto: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
-    const title = newTitle.trim();
-    if (!title || !selectedAddPhotoUrl) return;
+    const title = uiState.newTitle.trim();
+    if (!title || !uiState.selectedAddPhotoUrl) return;
 
     try {
       const photo = await createPhoto({
         albumId: album.id,
         title,
-        url: selectedAddPhotoUrl,
+        url: uiState.selectedAddPhotoUrl,
       });
 
       setPhotos((currentPhotos) => [photo, ...currentPhotos]);
@@ -325,14 +326,15 @@ export function PhotosPage() {
   };
 
   const savePhotoTitle = async (photo: Photo) => {
-    const title = draftTitle.trim();
-    if (!title || !draftPhotoUrl || pendingPhotoIds.includes(photo.id)) return;
+    const title = uiState.draftTitle.trim();
+    if (!title || !uiState.draftPhotoUrl || pendingPhotoIds.includes(photo.id))
+      return;
 
     try {
       setPendingPhotoIds((currentIds) => [...currentIds, photo.id]);
       const updatedPhoto = await updatePhoto(photo.id, {
         title,
-        url: draftPhotoUrl,
+        url: uiState.draftPhotoUrl,
       });
 
       setPhotos((currentPhotos) =>
@@ -355,7 +357,7 @@ export function PhotosPage() {
       await deletePhoto(photo.id);
       setPhotos((currentPhotos) =>
         currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id));
-      if (editingPhotoId === photo.id) {
+      if (uiState.editingPhotoId === photo.id) {
         cancelEditingPhoto();
       }
     } catch {
@@ -374,7 +376,7 @@ export function PhotosPage() {
       />
       <Toolbar>
         <SearchInput
-          value={search}
+          value={uiState.search}
           onChange={(value) =>
             setUiState((currentState) => ({
               ...currentState,
@@ -392,7 +394,7 @@ export function PhotosPage() {
       </Toolbar>
       <form className="inline-form" onSubmit={addPhoto}>
         <input
-          value={newTitle}
+          value={uiState.newTitle}
           onChange={(event) =>
             setUiState((currentState) => ({
               ...currentState,
@@ -403,7 +405,7 @@ export function PhotosPage() {
         />
         <Button
           type="submit"
-          disabled={!newTitle.trim() || !selectedAddPhotoUrl}
+          disabled={!uiState.newTitle.trim() || !uiState.selectedAddPhotoUrl}
         >
           Add Photo
         </Button>
@@ -419,7 +421,7 @@ export function PhotosPage() {
           {addPhotoChoices.map((choice) => (
             <button
               className={
-                choice.url === selectedAddPhotoUrl
+                choice.url === uiState.selectedAddPhotoUrl
                   ? "photo-choice selected"
                   : "photo-choice"
               }
@@ -444,7 +446,7 @@ export function PhotosPage() {
         )}
         {visiblePhotos.map((photo) => {
           const isPending = pendingPhotoIds.includes(photo.id);
-          const isEditing = editingPhotoId === photo.id;
+          const isEditing = uiState.editingPhotoId === photo.id;
 
           return (
             <article className="photo-card" key={photo.id}>
@@ -460,7 +462,7 @@ export function PhotosPage() {
                   <div className="photo-edit-stack">
                     <input
                       className="photo-edit-input"
-                      value={draftTitle}
+                      value={uiState.draftTitle}
                       onChange={(event) =>
                         setUiState((currentState) => ({
                           ...currentState,
@@ -487,7 +489,7 @@ export function PhotosPage() {
                       ).map((choice) => (
                         <button
                           className={
-                            choice.url === draftPhotoUrl
+                            choice.url === uiState.draftPhotoUrl
                               ? "photo-choice selected"
                               : "photo-choice"
                           }
@@ -522,7 +524,9 @@ export function PhotosPage() {
                         variant="secondary"
                         onClick={() => void savePhotoTitle(photo)}
                         disabled={
-                          isPending || !draftTitle.trim() || !draftPhotoUrl
+                          isPending ||
+                          !uiState.draftTitle.trim() ||
+                          !uiState.draftPhotoUrl
                         }
                       >
                         {isPending ? "Saving..." : "Save"}

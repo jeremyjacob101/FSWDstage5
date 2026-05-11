@@ -16,6 +16,7 @@ export function AlbumsPage() {
   } = useCachedUserResources<Album>("albums");
   const { user: activeUser } = useUser();
   const navigate = useNavigate();
+
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:albums`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:albums`;
@@ -23,16 +24,15 @@ export function AlbumsPage() {
     search: "",
     newTitle: "",
   });
+
   usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 
   if (!activeUser) {
     return null;
   }
 
-  const { search, newTitle } = uiState;
-
   const visibleAlbums = albums.filter((album) => {
-    const query = search.toLowerCase().trim();
+    const query = uiState.search.toLowerCase().trim();
     return (
       String(album.id).includes(query) ||
       album.title.toLowerCase().includes(query)
@@ -41,7 +41,7 @@ export function AlbumsPage() {
 
   const addAlbum: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
-    const title = newTitle.trim();
+    const title = uiState.newTitle.trim();
     if (!title) return;
 
     const album = await createAlbum({ userId: activeUser.id, title });
@@ -60,7 +60,7 @@ export function AlbumsPage() {
       />
       <Toolbar>
         <SearchInput
-          value={search}
+          value={uiState.search}
           onChange={(value) =>
             setUiState((currentState) => ({
               ...currentState,
@@ -72,7 +72,7 @@ export function AlbumsPage() {
       </Toolbar>
       <form className="inline-form" onSubmit={addAlbum}>
         <input
-          value={newTitle}
+          value={uiState.newTitle}
           onChange={(event) =>
             setUiState((currentState) => ({
               ...currentState,

@@ -23,7 +23,6 @@ export function TodosPage() {
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:todos`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:todos`;
-
   const [uiState, setUiState] = usePersistentState<TodosUiState>(uiStateKey, {
     search: "",
     sortBy: "id",
@@ -33,8 +32,6 @@ export function TodosPage() {
   });
 
   usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
-
-  const { search, sortBy, newTitle, editingTodoId, draftTitle } = uiState;
 
   const setUiField = <K extends keyof TodosUiState>(
     field: K,
@@ -47,10 +44,10 @@ export function TodosPage() {
   };
 
   useEffect(() => {
-    if (editingTodoId == null) {
+    if (uiState.editingTodoId == null) {
       return;
     }
-    if (todos.some((todo) => todo.id === editingTodoId)) {
+    if (todos.some((todo) => todo.id === uiState.editingTodoId)) {
       return;
     }
     setUiState((currentState) => ({
@@ -58,9 +55,9 @@ export function TodosPage() {
       editingTodoId: null,
       draftTitle: "",
     }));
-  }, [editingTodoId, setUiState, todos]);
+  }, [uiState.editingTodoId, setUiState, todos]);
 
-  const query = search.toLowerCase().trim();
+  const query = uiState.search.toLowerCase().trim();
   const visibleTodos = [...todos]
     .filter((todo) => {
       const completedText = todo.completed
@@ -74,15 +71,16 @@ export function TodosPage() {
       );
     })
     .sort((first, second) => {
-      if (sortBy === "title") return first.title.localeCompare(second.title);
-      if (sortBy === "completed")
+      if (uiState.sortBy === "title")
+        return first.title.localeCompare(second.title);
+      if (uiState.sortBy === "completed")
         return Number(first.completed) - Number(second.completed);
       return first.id - second.id;
     });
 
   const addTodo: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
-    const title = newTitle.trim();
+    const title = uiState.newTitle.trim();
     if (!title || isCreatingTodo) return;
 
     try {
@@ -119,7 +117,7 @@ export function TodosPage() {
   };
 
   const saveTodoTitle = async (todo: Todo) => {
-    const title = draftTitle.trim();
+    const title = uiState.draftTitle.trim();
     if (!title || pendingTodoIds.includes(todo.id)) return;
 
     try {
@@ -170,7 +168,7 @@ export function TodosPage() {
       await deleteTodo(todo.id);
       setTodos((currentTodos) =>
         currentTodos.filter((currentTodo) => currentTodo.id !== todo.id));
-      if (editingTodoId === todo.id) {
+      if (uiState.editingTodoId === todo.id) {
         cancelEditingTodo();
       }
     } catch {
@@ -193,14 +191,14 @@ export function TodosPage() {
       />
       <Toolbar>
         <SearchInput
-          value={search}
+          value={uiState.search}
           onChange={(value) => setUiField("search", value)}
           placeholder="Search id, title, status"
         />
         <label className="select-label">
           Sort
           <select
-            value={sortBy}
+            value={uiState.sortBy}
             onChange={(event) =>
               setUiField("sortBy", event.target.value as TodoSort)
             }
@@ -213,7 +211,7 @@ export function TodosPage() {
       </Toolbar>
       <form className="inline-form" onSubmit={addTodo}>
         <input
-          value={newTitle}
+          value={uiState.newTitle}
           onChange={(event) => setUiField("newTitle", event.target.value)}
           placeholder="New todo title"
           disabled={isCreatingTodo}
@@ -226,7 +224,7 @@ export function TodosPage() {
         {isLoading && <EmptyState message="Loading todos..." />}
         {visibleTodos.map((todo) => {
           const isPending = pendingTodoIds.includes(todo.id);
-          const isEditing = editingTodoId === todo.id;
+          const isEditing = uiState.editingTodoId === todo.id;
 
           return (
             <article className="todo-row" key={todo.id}>
@@ -241,7 +239,7 @@ export function TodosPage() {
                 {isEditing ? (
                   <input
                     className="todo-edit-input"
-                    value={draftTitle}
+                    value={uiState.draftTitle}
                     onChange={(event) =>
                       setUiField("draftTitle", event.target.value)
                     }
@@ -258,7 +256,7 @@ export function TodosPage() {
                     <Button
                       variant="secondary"
                       onClick={() => void saveTodoTitle(todo)}
-                      disabled={isPending || !draftTitle.trim()}
+                      disabled={isPending || !uiState.draftTitle.trim()}
                     >
                       {isPending ? "Saving..." : "Save"}
                     </Button>
