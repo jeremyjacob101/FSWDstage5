@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
-import { API_BASE_URL } from "../api/helpers";
-import { useUser } from "../context/useUser";
 import useCachedFetch from "./useCachedFetch";
+import { useUser } from "../context/useUser";
+import { API_BASE_URL } from "../api/api";
 
 export function useCachedUserResources<T>(
   resource: "todos" | "posts" | "albums",

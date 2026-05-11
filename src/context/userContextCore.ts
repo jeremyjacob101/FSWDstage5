@@ -1,5 +1,5 @@
+import type { User } from "../types/general";
 import { createContext } from "react";
-import type { User } from "../data/types";
 
 export interface UserContextValue {
   user: User | null;

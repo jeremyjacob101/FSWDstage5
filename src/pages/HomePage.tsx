@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui";
 import { useUser } from "../context/useUser";
+import { DashboardCard } from "../components/Shared";
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -41,26 +41,5 @@ export function HomePage() {
         />
       </div>
     </section>
-  );
-}
-
-function DashboardCard({
-  title,
-  description,
-  onClick,
-}: {
-  title: string;
-  description: string;
-  onClick: () => void;
-}) {
-  return (
-    <article className="dashboard-card">
-      <div>
-        <span className="card-icon">{title.slice(0, 1)}</span>
-        <h3>{title}</h3>
-        <p>{description}</p>
-      </div>
-      <Button onClick={onClick}>Open {title}</Button>
-    </article>
   );
 }

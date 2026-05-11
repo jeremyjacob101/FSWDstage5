@@ -1,43 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Comment, Post } from "../data/types";
+import { createComment, createPost, deleteComment, deletePost, getCommentsForPost, updateComment, updatePost } from "../api/api";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/Shared";
 import { useCachedUserResources } from "../hooks/useCachedUserResources";
-import { useUser } from "../context/useUser";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
-import { createComment, createPost, deleteComment, deletePost, getCommentsForPost, updateComment, updatePost } from "../api/api";
-
-type PostScope = "all" | "user";
-
-type PostsUiState = {
-  search: string;
-  postScope: PostScope;
-  showComments: boolean;
-  selectedPostId: number | null;
-  newPostTitle: string;
-  newPostBody: string;
-  newComment: string;
-  editingCommentId: number | null;
-  draftCommentBody: string;
-  editingPostId: number | null;
-  draftPostTitle: string;
-  draftPostBody: string;
-};
-
-const DEFAULT_POSTS_UI_STATE: PostsUiState = {
-  search: "",
-  postScope: "all",
-  showComments: false,
-  selectedPostId: null,
-  newPostTitle: "",
-  newPostBody: "",
-  newComment: "",
-  editingCommentId: null,
-  draftCommentBody: "",
-  editingPostId: null,
-  draftPostTitle: "",
-  draftPostBody: "",
-};
+import type { Comment, Post } from "../types/general";
+import type { PostsUiState } from "../types/state";
+import { useEffect, useMemo, useState } from "react";
+import { useUser } from "../context/useUser";
 
 export function PostsPage() {
   const {
@@ -45,19 +14,32 @@ export function PostsPage() {
     setItems: setPosts,
     isLoading,
   } = useCachedUserResources<Post>("posts", false);
+
   const { user: activeUser } = useUser();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [pendingPostIds, setPendingPostIds] = useState<number[]>([]);
   const [pendingCommentIds, setPendingCommentIds] = useState<number[]>([]);
+
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:posts`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:posts`;
-  const [uiState, setUiState] = usePersistentState<PostsUiState>(
-    uiStateKey,
-    DEFAULT_POSTS_UI_STATE,
-  );
+
+  const [uiState, setUiState] = usePersistentState<PostsUiState>(uiStateKey, {
+    search: "",
+    postScope: "all",
+    showComments: false,
+    selectedPostId: null,
+    newPostTitle: "",
+    newPostBody: "",
+    newComment: "",
+    editingCommentId: null,
+    draftCommentBody: "",
+    editingPostId: null,
+    draftPostTitle: "",
+    draftPostBody: "",
+  });
 
   const {
     search,
@@ -73,6 +55,7 @@ export function PostsPage() {
     draftPostTitle,
     draftPostBody,
   } = uiState;
+
   usePersistentScroll(
     scrollKey,
     Boolean(activeUser),

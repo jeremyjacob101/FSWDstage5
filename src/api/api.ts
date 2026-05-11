@@ -1,7 +1,47 @@
-import type { Album, Comment, Photo, Post, Todo, User } from "../data/types";
-import { request, writeOptions } from "./helpers";
-import type { CommentUpdates, NewAlbum, NewComment, NewPhoto, NewPost, NewTodo, NewUserDetails, PhotoUpdates, PostUpdates, TodoUpdates } from "./apiTypes";
+import type { CommentUpdates, NewAlbum, NewComment, NewPhoto, NewPost, NewTodo, NewUserDetails, PhotoUpdates, PostUpdates, TodoUpdates } from "../types/api";
+import type { Album, Comment, Photo, Post, Todo, User } from "../types/general";
 
+export const API_BASE_URL = "http://localhost:1837";
+
+// Base request function
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  let userId: number | null = null;
+  try {
+    const loggedIn = localStorage.getItem("entryBaseUser");
+    if (loggedIn) {
+      userId = (JSON.parse(loggedIn) as { id: number }).id;
+    } else {
+      const pending = localStorage.getItem("entryBasePendingRegistration");
+      if (pending) {
+        userId = (JSON.parse(pending) as { id: number }).id;
+      }
+    }
+  } catch {
+    userId = null;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(userId != null ? { "X-User-Id": String(userId) } : {}),
+      ...options?.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+}
+
+// API endpoints
 export async function findUserByUsername(
   username: string,
 ): Promise<User | null> {
@@ -35,9 +75,9 @@ export function createRegisteredUser({
   username: string;
   password: string;
 }): Promise<User> {
-  return request<User>(
-    "/users",
-    writeOptions("POST", {
+  return request<User>("/users", {
+    method: "POST",
+    body: JSON.stringify({
       username,
       website: password,
       name: username,
@@ -55,14 +95,17 @@ export function createRegisteredUser({
         bs: "",
       },
     }),
-  );
+  });
 }
 
 export function completeUserDetails(
   userId: number,
   details: NewUserDetails,
 ): Promise<User> {
-  return request<User>(`/users/${userId}`, writeOptions("PATCH", details));
+  return request<User>(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(details),
+  });
 }
 
 export function getTodosForUser(userId: number): Promise<Todo[]> {
@@ -73,14 +116,20 @@ export async function createTodo(todo: NewTodo): Promise<Todo> {
   const currentTodos = await request<Todo[]>("/todos");
   const nextId = Math.max(0, ...currentTodos.map((item) => item.id)) + 1;
 
-  return request<Todo>("/todos", writeOptions("POST", { ...todo, id: nextId }));
+  return request<Todo>("/todos", {
+    method: "POST",
+    body: JSON.stringify({ ...todo, id: nextId }),
+  });
 }
 
 export function updateTodo(
   todoId: number,
   updates: TodoUpdates,
 ): Promise<Todo> {
-  return request<Todo>(`/todos/${todoId}`, writeOptions("PATCH", updates));
+  return request<Todo>(`/todos/${todoId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
 }
 
 export function deleteTodo(todoId: number): Promise<void> {
@@ -95,14 +144,20 @@ export async function createPost(post: NewPost): Promise<Post> {
   const currentPosts = await request<Post[]>("/posts");
   const nextId = Math.max(0, ...currentPosts.map((item) => item.id)) + 1;
 
-  return request<Post>("/posts", writeOptions("POST", { ...post, id: nextId }));
+  return request<Post>("/posts", {
+    method: "POST",
+    body: JSON.stringify({ ...post, id: nextId }),
+  });
 }
 
 export function updatePost(
   postId: number,
   updates: PostUpdates,
 ): Promise<Post> {
-  return request<Post>(`/posts/${postId}`, writeOptions("PATCH", updates));
+  return request<Post>(`/posts/${postId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
 }
 
 export function deletePost(postId: number): Promise<void> {
@@ -114,17 +169,20 @@ export function getCommentsForPost(postId: number): Promise<Comment[]> {
 }
 
 export function createComment(comment: NewComment): Promise<Comment> {
-  return request<Comment>("/comments", writeOptions("POST", comment));
+  return request<Comment>("/comments", {
+    method: "POST",
+    body: JSON.stringify(comment),
+  });
 }
 
 export function updateComment(
   commentId: number,
   updates: CommentUpdates,
 ): Promise<Comment> {
-  return request<Comment>(
-    `/comments/${commentId}`,
-    writeOptions("PATCH", updates),
-  );
+  return request<Comment>(`/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
 }
 
 export function deleteComment(commentId: number): Promise<void> {
@@ -139,10 +197,10 @@ export async function createAlbum(album: NewAlbum): Promise<Album> {
   const currentAlbums = await request<Album[]>("/albums");
   const nextId = Math.max(0, ...currentAlbums.map((item) => item.id)) + 1;
 
-  return request<Album>(
-    "/albums",
-    writeOptions("POST", { ...album, id: nextId }),
-  );
+  return request<Album>("/albums", {
+    method: "POST",
+    body: JSON.stringify({ ...album, id: nextId }),
+  });
 }
 
 export function getPhotosForAlbum(
@@ -159,17 +217,20 @@ export async function createPhoto(photo: NewPhoto): Promise<Photo> {
   const currentPhotos = await request<Photo[]>("/photos");
   const nextId = Math.max(0, ...currentPhotos.map((item) => item.id)) + 1;
 
-  return request<Photo>(
-    "/photos",
-    writeOptions("POST", { ...photo, id: nextId }),
-  );
+  return request<Photo>("/photos", {
+    method: "POST",
+    body: JSON.stringify({ ...photo, id: nextId }),
+  });
 }
 
 export function updatePhoto(
   photoId: number,
   updates: PhotoUpdates,
 ): Promise<Photo> {
-  return request<Photo>(`/photos/${photoId}`, writeOptions("PATCH", updates));
+  return request<Photo>(`/photos/${photoId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
 }
 
 export function deletePhoto(photoId: number): Promise<void> {

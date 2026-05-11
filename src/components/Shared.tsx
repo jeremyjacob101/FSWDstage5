@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { User } from "../types/general";
 import { NavLink } from "react-router-dom";
-import type { User } from "../data/types";
+import type { ReactNode } from "react";
 
 export function ScreenHeader({
   title,
@@ -121,6 +121,27 @@ export function NavBar({
         <span className="user-pill nav-user">{user.name}</span>
       </div>
     </nav>
+  );
+}
+
+export function DashboardCard({
+  title,
+  description,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <article className="dashboard-card">
+      <div>
+        <span className="card-icon">{title.slice(0, 1)}</span>
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+      <Button onClick={onClick}>Open {title}</Button>
+    </article>
   );
 }
 

@@ -1,21 +1,12 @@
-import { useNavigate } from "react-router-dom";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/Shared";
 import { useCachedUserResources } from "../hooks/useCachedUserResources";
-import type { Album } from "../data/types";
-import { useUser } from "../context/useUser";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
+import { useNavigate } from "react-router-dom";
+import type { Album } from "../types/general";
+import type { AlbumsUiState } from "../types/state";
+import { useUser } from "../context/useUser";
 import { createAlbum } from "../api/api";
-
-type AlbumsUiState = {
-  search: string;
-  newTitle: string;
-};
-
-const DEFAULT_ALBUMS_UI_STATE: AlbumsUiState = {
-  search: "",
-  newTitle: "",
-};
 
 export function AlbumsPage() {
   const {
@@ -28,10 +19,10 @@ export function AlbumsPage() {
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:albums`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:albums`;
-  const [uiState, setUiState] = usePersistentState<AlbumsUiState>(
-    uiStateKey,
-    DEFAULT_ALBUMS_UI_STATE,
-  );
+  const [uiState, setUiState] = usePersistentState<AlbumsUiState>(uiStateKey, {
+    search: "",
+    newTitle: "",
+  });
   usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 
   if (!activeUser) {

@@ -1,29 +1,13 @@
-import { useEffect, useState } from "react";
-import type { Todo } from "../data/types";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/Shared";
 import { useCachedUserResources } from "../hooks/useCachedUserResources";
-import { useUser } from "../context/useUser";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
 import { createTodo, deleteTodo, updateTodo } from "../api/api";
-
-type TodoSort = "id" | "title" | "completed";
-
-type TodosUiState = {
-  search: string;
-  sortBy: TodoSort;
-  newTitle: string;
-  editingTodoId: number | null;
-  draftTitle: string;
-};
-
-const DEFAULT_TODOS_UI_STATE: TodosUiState = {
-  search: "",
-  sortBy: "id",
-  newTitle: "",
-  editingTodoId: null,
-  draftTitle: "",
-};
+import type { TodosUiState } from "../types/state";
+import type { TodoSort } from "../types/page";
+import type { Todo } from "../types/general";
+import { useUser } from "../context/useUser";
+import { useEffect, useState } from "react";
 
 export function TodosPage() {
   const {
@@ -31,16 +15,23 @@ export function TodosPage() {
     setItems: setTodos,
     isLoading,
   } = useCachedUserResources<Todo>("todos");
+
   const { user: activeUser } = useUser();
   const [pendingTodoIds, setPendingTodoIds] = useState<number[]>([]);
   const [isCreatingTodo, setIsCreatingTodo] = useState(false);
+
   const currentUserId = activeUser?.id ?? 0;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:todos`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:todos`;
-  const [uiState, setUiState] = usePersistentState<TodosUiState>(
-    uiStateKey,
-    DEFAULT_TODOS_UI_STATE,
-  );
+
+  const [uiState, setUiState] = usePersistentState<TodosUiState>(uiStateKey, {
+    search: "",
+    sortBy: "id",
+    newTitle: "",
+    editingTodoId: null,
+    draftTitle: "",
+  });
+
   usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 
   const { search, sortBy, newTitle, editingTodoId, draftTitle } = uiState;

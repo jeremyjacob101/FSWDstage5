@@ -1,19 +1,18 @@
-import { StrictMode, useState } from "react";
-import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { CompleteRegistrationScreen, LoginScreen, RegisterScreen } from "./components/Auth";
-import { InfoModal, NavBar } from "./components/ui";
 import { UserProvider } from "./context/userContext";
-import { useUser } from "./context/useUser";
-import type { User } from "./data/types";
+import type { UserRouteProps } from "./types/route";
+import { InfoModal, NavBar } from "./components/Shared";
 import { AlbumsPage } from "./pages/AlbumsPage";
-import { HomePage } from "./pages/HomePage";
 import { PhotosPage } from "./pages/PhotosPage";
+import { createRoot } from "react-dom/client";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
-import { ActiveUserRoute, FallbackNavigate, NavigateToCurrentUserAlbums, NavigateToCurrentUserPosts, NavigateToCurrentUserTodos, ProtectedRoute } from "./routes/navigationGuards";
+import { StrictMode, useState } from "react";
+import { useUser } from "./context/useUser";
+import type { User } from "./types/general";
+import { HomePage } from "./pages/HomePage";
 import "./App.css";
-import "./pages/css/Pages.css";
 
 export default function App() {
   const navigate = useNavigate();
@@ -22,6 +21,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen onLogin={login} />} />
+
       <Route
         path="/register"
         element={
@@ -36,6 +36,7 @@ export default function App() {
           />
         }
       />
+
       <Route
         path="/register/details"
         element={
@@ -49,55 +50,79 @@ export default function App() {
           />
         }
       />
+
       <Route
         path="/"
         element={
-          <ProtectedRoute>
+          <UserRoute action="protect">
             <AppShell />
-          </ProtectedRoute>
+          </UserRoute>
         }
       >
-        <Route index element={<Navigate to="/home" replace />} />
+        <Route index element={<UserRoute action="redirect" />} />
+
         <Route path="home" element={<HomePage />} />
-        <Route path="todos" element={<NavigateToCurrentUserTodos />} />
-        <Route path="posts" element={<NavigateToCurrentUserPosts />} />
-        <Route path="albums" element={<NavigateToCurrentUserAlbums />} />
-        <Route path="photos" element={<NavigateToCurrentUserAlbums />} />
+
+        <Route
+          path="todos"
+          element={<UserRoute action="redirect" section="todos" />}
+        />
+
+        <Route
+          path="posts"
+          element={<UserRoute action="redirect" section="posts" />}
+        />
+
+        <Route
+          path="albums"
+          element={<UserRoute action="redirect" section="albums" />}
+        />
+
+        <Route
+          path="photos"
+          element={<UserRoute action="redirect" section="albums" />}
+        />
+
         <Route
           path="users/:userId/todos"
           element={
-            <ActiveUserRoute section="todos">
+            <UserRoute action="active-user" section="todos">
               <TodosPage />
-            </ActiveUserRoute>
+            </UserRoute>
           }
         />
+
         <Route
           path="users/:userId/posts"
           element={
-            <ActiveUserRoute section="posts">
+            <UserRoute action="active-user" section="posts">
               <PostsPage />
-            </ActiveUserRoute>
+            </UserRoute>
           }
         />
+
         <Route
           path="users/:userId/albums"
           element={
-            <ActiveUserRoute section="albums">
+            <UserRoute action="active-user" section="albums">
               <AlbumsPage />
-            </ActiveUserRoute>
+            </UserRoute>
           }
         />
+
         <Route
           path="users/:userId/albums/:albumId/photos"
           element={
-            <ActiveUserRoute section="albums">
+            <UserRoute action="active-user" section="albums">
               <PhotosPage />
-            </ActiveUserRoute>
+            </UserRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/home" replace />} />
+
+        <Route path="*" element={<UserRoute action="redirect" />} />
       </Route>
-      <Route path="*" element={<FallbackNavigate />} />
+
+      <Route path="*" element={<UserRoute action="redirect" />} />
     </Routes>
   );
 }
@@ -114,14 +139,36 @@ function AppShell() {
         onInfo={() => setInfoOpen(true)}
         onLogout={logout}
       />
+
       <main className="page-content">
         <Outlet />
       </main>
+
       {infoOpen && (
         <InfoModal user={activeUser} onClose={() => setInfoOpen(false)} />
       )}
     </div>
   );
+}
+
+function UserRoute(props: UserRouteProps) {
+  const { user } = useUser();
+  const { userId } = useParams();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (props.action === "redirect") {
+    const path = props.section ? `/users/${user.id}/${props.section}` : "/home";
+    return <Navigate to={path} replace />;
+  }
+
+  if (props.action === "active-user" && Number(userId) !== user.id) {
+    return <Navigate to={`/users/${user.id}/${props.section}`} replace />;
+  }
+
+  return props.children;
 }
 
 createRoot(document.getElementById("root")!).render(

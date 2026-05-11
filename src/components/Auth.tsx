@@ -1,9 +1,8 @@
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
-import type { User } from "../data/types";
 import { authenticateUser, completeUserDetails, createRegisteredUser, findUserByUsername } from "../api/api";
-import "./Auth.css";
+import type { User } from "../types/general";
+import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
+import { useState } from "react";
 
 export function LoginScreen({ onLogin }: { onLogin: (user: User) => void }) {
   const [username, setUsername] = useState("");

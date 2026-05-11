@@ -1,4 +1,4 @@
-import type { User } from "../data/types";
+import type { User } from "./general";
 
 export type NewUserDetails = {
   name: string;

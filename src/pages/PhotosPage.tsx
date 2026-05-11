@@ -1,49 +1,22 @@
+import { PHOTOS_PER_BATCH, PHOTO_CHOICES, PHOTOS_MAX_PICSUM_SEED, PHOTOS_MAX_RESTORED_PAGES } from "../types/page";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/Shared";
+import { createPhoto, deletePhoto, getPhotosForAlbum, updatePhoto } from "../api/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import type { Album, Photo } from "../data/types";
 import { useCachedUserResources } from "../hooks/useCachedUserResources";
-import { useUser } from "../context/useUser";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
-import { createPhoto, deletePhoto, getPhotosForAlbum, updatePhoto } from "../api/api";
-
-const PHOTOS_PER_BATCH = 12;
-const PHOTO_CHOICES = 20;
-const MAX_PICSUM_SEED = 1_000_000;
-const MAX_RESTORED_PAGES = 30;
-
-type PhotoChoice = {
-  seed: number;
-  url: string;
-};
-
-type PhotosUiState = {
-  search: string;
-  newTitle: string;
-  selectedAddPhotoUrl: string;
-  editingPhotoId: number | null;
-  draftTitle: string;
-  draftPhotoUrl: string;
-  loadedPages: number;
-};
-
-const DEFAULT_PHOTOS_UI_STATE: PhotosUiState = {
-  search: "",
-  newTitle: "",
-  selectedAddPhotoUrl: "",
-  editingPhotoId: null,
-  draftTitle: "",
-  draftPhotoUrl: "",
-  loadedPages: 1,
-};
+import { useNavigate, useParams } from "react-router-dom";
+import type { Album, Photo } from "../types/general";
+import type { PhotosUiState } from "../types/state";
+import type { PhotoChoice } from "../types/page";
+import { useUser } from "../context/useUser";
 
 function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
   const usedSeeds = new Set<number>();
   const choices: PhotoChoice[] = [];
 
   while (choices.length < count) {
-    const seed = Math.floor(Math.random() * MAX_PICSUM_SEED) + 1;
+    const seed = Math.floor(Math.random() * PHOTOS_MAX_PICSUM_SEED) + 1;
     if (usedSeeds.has(seed)) continue;
 
     usedSeeds.add(seed);
@@ -84,10 +57,15 @@ export function PhotosPage() {
   const albumPageKey = `photos:album:${selectedAlbumId ?? "none"}`;
   const uiStateKey = `entrybase:ui:v1:user:${currentUserId}:page:${albumPageKey}`;
   const scrollKey = `entrybase:scroll:v1:user:${currentUserId}:page:${albumPageKey}`;
-  const [uiState, setUiState] = usePersistentState<PhotosUiState>(
-    uiStateKey,
-    DEFAULT_PHOTOS_UI_STATE,
-  );
+  const [uiState, setUiState] = usePersistentState<PhotosUiState>(uiStateKey, {
+    search: "",
+    newTitle: "",
+    selectedAddPhotoUrl: "",
+    editingPhotoId: null,
+    draftTitle: "",
+    draftPhotoUrl: "",
+    loadedPages: 1,
+  });
   usePersistentScroll(
     scrollKey,
     Boolean(activeUser),
@@ -135,7 +113,10 @@ export function PhotosPage() {
 
     let isCurrent = true;
     const targetAlbumId = album.id;
-    const pagesToLoad = Math.min(Math.max(1, loadedPages), MAX_RESTORED_PAGES);
+    const pagesToLoad = Math.min(
+      Math.max(1, loadedPages),
+      PHOTOS_MAX_RESTORED_PAGES,
+    );
 
     async function loadInitialPhotos() {
       setIsReadyForScrollRestore(false);
@@ -219,7 +200,7 @@ export function PhotosPage() {
       setHasMorePhotos(nextPhotos.length === PHOTOS_PER_BATCH);
       setUiState((currentState) => ({
         ...currentState,
-        loadedPages: Math.min(nextPage, MAX_RESTORED_PAGES),
+        loadedPages: Math.min(nextPage, PHOTOS_MAX_RESTORED_PAGES),
       }));
     } catch {
       return;

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useUser } from "../context/useUser";
+import { useEffect, useState } from "react";
 
 export default function useCachedFetch<T>(url: string) {
   const { user } = useUser();

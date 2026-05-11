@@ -10,7 +10,7 @@
     "format:check": "prettier --ignore-path .gitignore --check \"**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}\"",
     "lint": "eslint .",
     "preview": "vite preview --config config/vite.config.ts",
-    "database-server": "json-server ./database-server/db.json --port 1837 --middlewares ./database-server/auth-middleware.cjs"
+    "database-server": "tsx ./database-server/server.ts"
   },
   "prettier": {
     "plugins": [
@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/json-server": "^0.14.8",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -54,6 +55,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
     "prettier": "^3.8.3",
+    "tsx": "^4.21.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10"

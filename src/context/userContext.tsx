@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import useLocalStorage from "../hooks/useLocalStorage";
-import type { User } from "../data/types";
 import { UserContext } from "./userContextCore";
+import { useNavigate } from "react-router-dom";
+import type { User } from "../types/general";
+import type { ReactNode } from "react";
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
