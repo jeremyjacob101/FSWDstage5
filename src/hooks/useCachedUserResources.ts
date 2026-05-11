@@ -21,10 +21,7 @@ export function useCachedUserTodos() {
   const { user } = useUser();
   const userId = user?.id;
   const url = resourceUrl(`/todos?userId=${userId ?? 0}`);
-  const { data, loading, error, updateCache } = useCachedFetch<Todo[]>(
-    url,
-    userId,
-  );
+  const { data, loading, error, updateCache } = useCachedFetch<Todo[]>(url);
 
   const todos = data ?? [];
   const setTodos = createCacheSetter(data, updateCache);
@@ -33,13 +30,8 @@ export function useCachedUserTodos() {
 }
 
 export function useCachedUserPosts() {
-  const { user } = useUser();
-  const userId = user?.id;
   const url = resourceUrl("/posts");
-  const { data, loading, error, updateCache } = useCachedFetch<Post[]>(
-    url,
-    userId,
-  );
+  const { data, loading, error, updateCache } = useCachedFetch<Post[]>(url);
 
   const posts = data ?? [];
   const setPosts = createCacheSetter(data, updateCache);
@@ -51,10 +43,7 @@ export function useCachedUserAlbums() {
   const { user } = useUser();
   const userId = user?.id;
   const url = resourceUrl(`/albums?userId=${userId ?? 0}`);
-  const { data, loading, error, updateCache } = useCachedFetch<Album[]>(
-    url,
-    userId,
-  );
+  const { data, loading, error, updateCache } = useCachedFetch<Album[]>(url);
 
   const albums = data ?? [];
   const setAlbums = createCacheSetter(data, updateCache);

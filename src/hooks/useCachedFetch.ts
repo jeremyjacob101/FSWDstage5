@@ -14,13 +14,10 @@ export interface CachedFetchResult<T> {
  */
 function useCachedFetch<T>(
   url: string,
-  resourceUserId?: number,
 ): CachedFetchResult<T> {
   const { user } = useUser();
-  const currentUserId = user?.id ?? null;
+  const currentUserId = user?.id;
   const key = `cache:${url}`;
-
-  const isAuthorized = user != null && user.id === resourceUserId;
 
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,10 +26,10 @@ function useCachedFetch<T>(
   useEffect(() => {
     let cancelled = false;
 
-    if (!isAuthorized) {
+    if (!currentUserId) {
       setData(null);
       setLoading(false);
-      setError("You are not authorized to access this data.");
+      setError(null);
       return () => {
         cancelled = true;
       };
@@ -96,10 +93,10 @@ function useCachedFetch<T>(
     return () => {
       cancelled = true;
     };
-  }, [url, key, isAuthorized, currentUserId]);
+  }, [url, key, currentUserId]);
 
   function updateCache(newData: T) {
-    if (!isAuthorized) {
+    if (!currentUserId) {
       return;
     }
     try {
