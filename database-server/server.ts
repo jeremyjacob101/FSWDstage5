@@ -6,6 +6,7 @@ const API_BASE_URL = `http://localhost:${API_PORT_NUMBER}`;
 
 const server = jsonServer.create();
 const router = jsonServer.router("./database-server/database/db.json");
+(server as typeof server & { db: typeof router.db }).db = router.db;
 const defaultMiddlewares = jsonServer.defaults();
 
 server.use(defaultMiddlewares);
