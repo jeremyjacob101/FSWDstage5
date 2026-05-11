@@ -50,27 +50,33 @@ export function usePersistentState<T>(
     }
   }, [key, state]);
 
-  const setState = useCallback<Dispatch<SetStateAction<T>>>((action) => {
-    setEntry((currentEntry) => {
-      const currentStateForKey =
-        currentEntry.key === key
-          ? currentEntry.value
-          : readState(key, initialState, sanitize);
-      const nextState =
-        typeof action === "function"
-          ? (action as (previousState: T) => T)(currentStateForKey)
-          : action;
+  const setState = useCallback<Dispatch<SetStateAction<T>>>(
+    (action) => {
+      setEntry((currentEntry) => {
+        const currentStateForKey =
+          currentEntry.key === key
+            ? currentEntry.value
+            : readState(key, initialState, sanitize);
+        const nextState =
+          typeof action === "function"
+            ? (action as (previousState: T) => T)(currentStateForKey)
+            : action;
 
-      if (currentEntry.key === key && Object.is(nextState, currentStateForKey)) {
-        return currentEntry;
-      }
+        if (
+          currentEntry.key === key &&
+          Object.is(nextState, currentStateForKey)
+        ) {
+          return currentEntry;
+        }
 
-      return {
-        key,
-        value: nextState,
-      };
-    });
-  }, [initialState, key, sanitize]);
+        return {
+          key,
+          value: nextState,
+        };
+      });
+    },
+    [initialState, key, sanitize],
+  );
 
   return [state, setState];
 }
