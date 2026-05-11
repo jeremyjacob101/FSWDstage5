@@ -1,7 +1,4 @@
-import {
-  ENTRYBASE_PENDING_REGISTRATION_KEY,
-  ENTRYBASE_USER_KEY,
-} from "../context/authStorageKeys";
+import { ENTRYBASE_PENDING_REGISTRATION_KEY, ENTRYBASE_USER_KEY } from "../context/authStorageKeys";
 
 export const API_BASE_URL = "http://localhost:1837";
 

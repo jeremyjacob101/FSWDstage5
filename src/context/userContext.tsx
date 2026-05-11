@@ -2,10 +2,7 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import useLocalStorage from "../hooks/useLocalStorage";
 import type { User } from "../data/types";
-import {
-  ENTRYBASE_PENDING_REGISTRATION_KEY,
-  ENTRYBASE_USER_KEY,
-} from "./authStorageKeys";
+import { ENTRYBASE_PENDING_REGISTRATION_KEY, ENTRYBASE_USER_KEY } from "./authStorageKeys";
 import { UserContext } from "./userContextCore";
 
 export function UserProvider({ children }: { children: ReactNode }) {

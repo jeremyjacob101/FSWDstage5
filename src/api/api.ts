@@ -1,17 +1,6 @@
 import type { Album, Comment, Photo, Post, Todo, User } from "../data/types";
 import { getNextNumericId, request, writeOptions } from "./helpers";
-import type {
-  CommentUpdates,
-  NewAlbum,
-  NewComment,
-  NewPhoto,
-  NewPost,
-  NewTodo,
-  NewUserDetails,
-  PhotoUpdates,
-  PostUpdates,
-  TodoUpdates,
-} from "./apiTypes";
+import type { CommentUpdates, NewAlbum, NewComment, NewPhoto, NewPost, NewTodo, NewUserDetails, PhotoUpdates, PostUpdates, TodoUpdates } from "./apiTypes";
 
 export async function findUserByUsername(
   username: string,

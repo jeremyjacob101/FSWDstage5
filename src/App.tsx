@@ -1,18 +1,7 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  BrowserRouter,
-  Navigate,
-  Outlet,
-  Route,
-  Routes,
-  useNavigate,
-} from "react-router-dom";
-import {
-  CompleteRegistrationScreen,
-  LoginScreen,
-  RegisterScreen,
-} from "./components/Auth";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { CompleteRegistrationScreen, LoginScreen, RegisterScreen } from "./components/Auth";
 import { InfoModal, NavBar } from "./components/ui";
 import { ENTRYBASE_PENDING_REGISTRATION_KEY } from "./context/authStorageKeys";
 import { UserProvider } from "./context/userContext";
@@ -23,14 +12,7 @@ import { HomePage } from "./pages/HomePage";
 import { PhotosPage } from "./pages/PhotosPage";
 import { PostsPage } from "./pages/PostsPage";
 import { TodosPage } from "./pages/TodosPage";
-import {
-  ActiveUserRoute,
-  FallbackNavigate,
-  NavigateToCurrentUserAlbums,
-  NavigateToCurrentUserPosts,
-  NavigateToCurrentUserTodos,
-  ProtectedRoute,
-} from "./routes/navigationGuards";
+import { ActiveUserRoute, FallbackNavigate, NavigateToCurrentUserAlbums, NavigateToCurrentUserPosts, NavigateToCurrentUserTodos, ProtectedRoute } from "./routes/navigationGuards";
 import "./App.css";
 import "./pages/css/Pages.css";
 

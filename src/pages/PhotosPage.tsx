@@ -6,19 +6,8 @@ import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import {
-  Button,
-  EmptyState,
-  ScreenHeader,
-  SearchInput,
-  Toolbar,
-} from "../components/ui";
-import {
-  createPhoto,
-  deletePhoto,
-  getPhotosForAlbum,
-  updatePhoto,
-} from "../api/api";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
+import { createPhoto, deletePhoto, getPhotosForAlbum, updatePhoto } from "../api/api";
 
 const PHOTOS_PER_BATCH = 12;
 const PHOTO_CHOICES = 20;
@@ -155,8 +144,7 @@ export function PhotosPage() {
 
       try {
         const pageRequests = Array.from({ length: pagesToLoad }, (_, index) =>
-          getPhotosForAlbum(targetAlbumId, index + 1, PHOTOS_PER_BATCH),
-        );
+          getPhotosForAlbum(targetAlbumId, index + 1, PHOTOS_PER_BATCH));
         const photoPages = await Promise.all(pageRequests);
         const mergedPhotos = photoPages.flat();
         const lastPage = photoPages[photoPages.length - 1] ?? [];
@@ -369,16 +357,13 @@ export function PhotosPage() {
 
       setPhotos((currentPhotos) =>
         currentPhotos.map((currentPhoto) =>
-          currentPhoto.id === photo.id ? updatedPhoto : currentPhoto,
-        ),
-      );
+          currentPhoto.id === photo.id ? updatedPhoto : currentPhoto));
       cancelEditingPhoto();
     } catch {
       return;
     } finally {
       setPendingPhotoIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== photo.id),
-      );
+        currentIds.filter((currentId) => currentId !== photo.id));
     }
   };
 
@@ -389,8 +374,7 @@ export function PhotosPage() {
       setPendingPhotoIds((currentIds) => [...currentIds, photo.id]);
       await deletePhoto(photo.id);
       setPhotos((currentPhotos) =>
-        currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id),
-      );
+        currentPhotos.filter((currentPhoto) => currentPhoto.id !== photo.id));
       if (editingPhotoId === photo.id) {
         cancelEditingPhoto();
       }
@@ -398,8 +382,7 @@ export function PhotosPage() {
       return;
     } finally {
       setPendingPhotoIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== photo.id),
-      );
+        currentIds.filter((currentId) => currentId !== photo.id));
     }
   };
 

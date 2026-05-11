@@ -5,13 +5,7 @@ import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import {
-  Button,
-  EmptyState,
-  ScreenHeader,
-  SearchInput,
-  Toolbar,
-} from "../components/ui";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
 import { createTodo, deleteTodo, updateTodo } from "../api/api";
 
 type TodoSort = "id" | "title" | "completed";
@@ -143,16 +137,13 @@ export function TodosPage() {
 
       setTodos((currentTodos) =>
         currentTodos.map((currentTodo) =>
-          currentTodo.id === todo.id ? updatedTodo : currentTodo,
-        ),
-      );
+          currentTodo.id === todo.id ? updatedTodo : currentTodo));
       cancelEditingTodo();
     } catch {
       return;
     } finally {
       setPendingTodoIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== todo.id),
-      );
+        currentIds.filter((currentId) => currentId !== todo.id));
     }
   };
 
@@ -168,15 +159,12 @@ export function TodosPage() {
 
       setTodos((currentTodos) =>
         currentTodos.map((currentTodo) =>
-          currentTodo.id === todo.id ? updatedTodo : currentTodo,
-        ),
-      );
+          currentTodo.id === todo.id ? updatedTodo : currentTodo));
     } catch {
       return;
     } finally {
       setPendingTodoIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== todo.id),
-      );
+        currentIds.filter((currentId) => currentId !== todo.id));
     }
   };
 
@@ -187,8 +175,7 @@ export function TodosPage() {
       setPendingTodoIds((currentIds) => [...currentIds, todo.id]);
       await deleteTodo(todo.id);
       setTodos((currentTodos) =>
-        currentTodos.filter((currentTodo) => currentTodo.id !== todo.id),
-      );
+        currentTodos.filter((currentTodo) => currentTodo.id !== todo.id));
       if (editingTodoId === todo.id) {
         cancelEditingTodo();
       }
@@ -196,8 +183,7 @@ export function TodosPage() {
       return;
     } finally {
       setPendingTodoIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== todo.id),
-      );
+        currentIds.filter((currentId) => currentId !== todo.id));
     }
   };
 

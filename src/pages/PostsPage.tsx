@@ -5,22 +5,8 @@ import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import {
-  Button,
-  EmptyState,
-  ScreenHeader,
-  SearchInput,
-  Toolbar,
-} from "../components/ui";
-import {
-  createComment,
-  createPost,
-  deleteComment,
-  deletePost,
-  getCommentsForPost,
-  updateComment,
-  updatePost,
-} from "../api/api";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
+import { createComment, createPost, deleteComment, deletePost, getCommentsForPost, updateComment, updatePost } from "../api/api";
 
 type PostScope = "all" | "user";
 
@@ -344,16 +330,13 @@ export function PostsPage() {
 
       setComments((currentComments) =>
         currentComments.map((currentComment) =>
-          currentComment.id === comment.id ? updatedComment : currentComment,
-        ),
-      );
+          currentComment.id === comment.id ? updatedComment : currentComment));
       cancelEditingComment();
     } catch {
       return;
     } finally {
       setPendingCommentIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== comment.id),
-      );
+        currentIds.filter((currentId) => currentId !== comment.id));
     }
   };
 
@@ -368,8 +351,7 @@ export function PostsPage() {
       setComments((currentComments) =>
         currentComments.filter(
           (currentComment) => currentComment.id !== comment.id,
-        ),
-      );
+        ));
       if (editingCommentId === comment.id) {
         cancelEditingComment();
       }
@@ -377,8 +359,7 @@ export function PostsPage() {
       return;
     } finally {
       setPendingCommentIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== comment.id),
-      );
+        currentIds.filter((currentId) => currentId !== comment.id));
     }
   };
 
@@ -400,16 +381,13 @@ export function PostsPage() {
 
       setPosts((currentPosts) =>
         currentPosts.map((currentPost) =>
-          currentPost.id === post.id ? updatedPost : currentPost,
-        ),
-      );
+          currentPost.id === post.id ? updatedPost : currentPost));
       cancelEditingPost();
     } catch {
       return;
     } finally {
       setPendingPostIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== post.id),
-      );
+        currentIds.filter((currentId) => currentId !== post.id));
     }
   };
 
@@ -437,8 +415,7 @@ export function PostsPage() {
       return;
     } finally {
       setPendingPostIds((currentIds) =>
-        currentIds.filter((currentId) => currentId !== post.id),
-      );
+        currentIds.filter((currentId) => currentId !== post.id));
     }
   };
 

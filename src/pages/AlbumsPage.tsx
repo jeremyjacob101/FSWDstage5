@@ -4,13 +4,7 @@ import { useUser } from "../context/useUser";
 import { buildScrollKey, buildUiStateKey } from "../hooks/persistenceKeys";
 import { usePersistentScroll } from "../hooks/usePersistentScroll";
 import { usePersistentState } from "../hooks/usePersistentState";
-import {
-  Button,
-  EmptyState,
-  ScreenHeader,
-  SearchInput,
-  Toolbar,
-} from "../components/ui";
+import { Button, EmptyState, ScreenHeader, SearchInput, Toolbar } from "../components/ui";
 import { createAlbum } from "../api/api";
 
 type AlbumsUiState = {

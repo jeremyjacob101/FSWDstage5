@@ -4,12 +4,37 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "format": "prettier --write .",
+    "dev": "vite --config config/vite.config.ts",
+    "build": "tsc -b config/tsconfig.json && vite build --config config/vite.config.ts",
+    "format": "prettier --ignore-path .gitignore --cache --write \"**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}\"",
+    "format:check": "prettier --ignore-path .gitignore --check \"**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}\"",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --config config/vite.config.ts",
     "database-server": "json-server ./database-server/db.json --port 1837 --routes ./database-server/routes.json --middlewares ./database-server/auth-middleware.cjs"
+  },
+  "prettier": {
+    "plugins": [
+      "./config/prettier-plugin-single-line-imports.mjs"
+    ],
+    "singleLineImports": true,
+    "overrides": [
+      {
+        "files": [
+          "**/*.{js,jsx,cjs,mjs}"
+        ],
+        "options": {
+          "parser": "imports-babel"
+        }
+      },
+      {
+        "files": [
+          "**/*.{ts,tsx,cts,mts}"
+        ],
+        "options": {
+          "parser": "imports-typescript"
+        }
+      }
+    ]
   },
   "dependencies": {
     "json-server": "^0.17.4",
