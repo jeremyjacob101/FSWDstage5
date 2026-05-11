@@ -36,7 +36,7 @@ export function createRegisteredUser({
   password: string;
 }): Promise<User> {
   return request<User>(
-    "/register",
+    "/users",
     writeOptions("POST", {
       username,
       website: password,

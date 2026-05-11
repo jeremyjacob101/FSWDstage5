@@ -10,7 +10,7 @@
     "format:check": "prettier --ignore-path .gitignore --check \"**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}\"",
     "lint": "eslint .",
     "preview": "vite preview --config config/vite.config.ts",
-    "database-server": "json-server ./database-server/db.json --port 1837 --routes ./database-server/routes.json --middlewares ./database-server/auth-middleware.cjs"
+    "database-server": "json-server ./database-server/db.json --port 1837 --middlewares ./database-server/auth-middleware.cjs"
   },
   "prettier": {
     "plugins": [
