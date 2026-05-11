@@ -50,47 +50,6 @@ const DEFAULT_PHOTOS_UI_STATE: PhotosUiState = {
   loadedPages: 1,
 };
 
-function sanitizePhotosUiState(raw: unknown): PhotosUiState {
-  const candidate = raw as Partial<PhotosUiState> | null;
-  const loadedPages =
-    typeof candidate?.loadedPages === "number" &&
-    Number.isInteger(candidate.loadedPages)
-      ? candidate.loadedPages
-      : 1;
-
-  return {
-    search: typeof candidate?.search === "string" ? candidate.search : "",
-    newTitle: typeof candidate?.newTitle === "string" ? candidate.newTitle : "",
-    selectedAddPhotoUrl:
-      typeof candidate?.selectedAddPhotoUrl === "string"
-        ? candidate.selectedAddPhotoUrl
-        : "",
-    editingPhotoId:
-      typeof candidate?.editingPhotoId === "number" &&
-      candidate.editingPhotoId > 0
-        ? candidate.editingPhotoId
-        : null,
-    draftTitle:
-      typeof candidate?.draftTitle === "string" ? candidate.draftTitle : "",
-    draftPhotoUrl:
-      typeof candidate?.draftPhotoUrl === "string"
-        ? candidate.draftPhotoUrl
-        : "",
-    loadedPages: Math.min(Math.max(loadedPages, 1), MAX_RESTORED_PAGES),
-  };
-}
-
-function parsePositiveInt(value: string | undefined) {
-  if (!value) {
-    return null;
-  }
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return null;
-  }
-  return parsed;
-}
-
 function createPhotoChoices(count = PHOTO_CHOICES): PhotoChoice[] {
   const usedSeeds = new Set<number>();
   const choices: PhotoChoice[] = [];
@@ -127,8 +86,11 @@ export function PhotosPage() {
   const loadedAlbumIdRef = useRef<number | null>(null);
   const currentUserId = activeUser?.id ?? 0;
 
-  const albumIdParam = parsePositiveInt(albumId);
-  const selectedAlbumId = albumIdParam ?? albums[0]?.id;
+  const parsedAlbumId = Number(albumId);
+  const selectedAlbumId =
+    Number.isInteger(parsedAlbumId) && parsedAlbumId > 0
+      ? parsedAlbumId
+      : albums[0]?.id;
   const album = albums.find(
     (currentAlbum) => currentAlbum.id === selectedAlbumId,
   );
@@ -138,7 +100,6 @@ export function PhotosPage() {
   const [uiState, setUiState] = usePersistentState<PhotosUiState>(
     uiStateKey,
     DEFAULT_PHOTOS_UI_STATE,
-    sanitizePhotosUiState,
   );
   usePersistentScroll(
     scrollKey,
@@ -187,7 +148,10 @@ export function PhotosPage() {
 
     let isCurrent = true;
     const targetAlbumId = album.id;
-    const pagesToLoad = Math.max(1, loadedPages);
+    const pagesToLoad = Math.min(
+      Math.max(1, loadedPages),
+      MAX_RESTORED_PAGES,
+    );
 
     async function loadInitialPhotos() {
       setIsReadyForScrollRestore(false);

@@ -54,49 +54,6 @@ const DEFAULT_POSTS_UI_STATE: PostsUiState = {
   draftPostBody: "",
 };
 
-function sanitizePostsUiState(raw: unknown): PostsUiState {
-  const candidate = raw as Partial<PostsUiState> | null;
-  const postScope: PostScope = candidate?.postScope === "user" ? "user" : "all";
-  return {
-    search: typeof candidate?.search === "string" ? candidate.search : "",
-    postScope,
-    showComments: Boolean(candidate?.showComments),
-    selectedPostId:
-      typeof candidate?.selectedPostId === "number" &&
-      candidate.selectedPostId > 0
-        ? candidate.selectedPostId
-        : null,
-    newPostTitle:
-      typeof candidate?.newPostTitle === "string" ? candidate.newPostTitle : "",
-    newPostBody:
-      typeof candidate?.newPostBody === "string" ? candidate.newPostBody : "",
-    newComment:
-      typeof candidate?.newComment === "string" ? candidate.newComment : "",
-    editingCommentId:
-      typeof candidate?.editingCommentId === "number" &&
-      candidate.editingCommentId > 0
-        ? candidate.editingCommentId
-        : null,
-    draftCommentBody:
-      typeof candidate?.draftCommentBody === "string"
-        ? candidate.draftCommentBody
-        : "",
-    editingPostId:
-      typeof candidate?.editingPostId === "number" &&
-      candidate.editingPostId > 0
-        ? candidate.editingPostId
-        : null,
-    draftPostTitle:
-      typeof candidate?.draftPostTitle === "string"
-        ? candidate.draftPostTitle
-        : "",
-    draftPostBody:
-      typeof candidate?.draftPostBody === "string"
-        ? candidate.draftPostBody
-        : "",
-  };
-}
-
 export function PostsPage() {
   const { posts, setPosts, isLoading, loadError } = useCachedUserPosts();
   const { user: activeUser } = useUser();
@@ -112,7 +69,6 @@ export function PostsPage() {
   const [uiState, setUiState] = usePersistentState<PostsUiState>(
     uiStateKey,
     DEFAULT_POSTS_UI_STATE,
-    sanitizePostsUiState,
   );
 
   const {

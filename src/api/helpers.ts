@@ -9,17 +9,11 @@ function getStoredUserIdForApi(): number | null {
   try {
     const loggedIn = localStorage.getItem(ENTRYBASE_USER_KEY);
     if (loggedIn) {
-      const parsed = JSON.parse(loggedIn) as { id?: unknown };
-      if (typeof parsed?.id === "number") {
-        return parsed.id;
-      }
+      return (JSON.parse(loggedIn) as { id: number }).id;
     }
     const pending = localStorage.getItem(ENTRYBASE_PENDING_REGISTRATION_KEY);
     if (pending) {
-      const parsed = JSON.parse(pending) as { id?: unknown };
-      if (typeof parsed?.id === "number") {
-        return parsed.id;
-      }
+      return (JSON.parse(pending) as { id: number }).id;
     }
   } catch {
     return null;

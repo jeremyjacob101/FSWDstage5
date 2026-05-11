@@ -24,14 +24,6 @@ const DEFAULT_ALBUMS_UI_STATE: AlbumsUiState = {
   newTitle: "",
 };
 
-function sanitizeAlbumsUiState(raw: unknown): AlbumsUiState {
-  const candidate = raw as Partial<AlbumsUiState> | null;
-  return {
-    search: typeof candidate?.search === "string" ? candidate.search : "",
-    newTitle: typeof candidate?.newTitle === "string" ? candidate.newTitle : "",
-  };
-}
-
 export function AlbumsPage() {
   const { albums, setAlbums, isLoading, loadError } = useCachedUserAlbums();
   const { user: activeUser } = useUser();
@@ -43,7 +35,6 @@ export function AlbumsPage() {
   const [uiState, setUiState] = usePersistentState<AlbumsUiState>(
     uiStateKey,
     DEFAULT_ALBUMS_UI_STATE,
-    sanitizeAlbumsUiState,
   );
   usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 

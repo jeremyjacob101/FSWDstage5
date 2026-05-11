@@ -32,26 +32,6 @@ const DEFAULT_TODOS_UI_STATE: TodosUiState = {
   draftTitle: "",
 };
 
-function sanitizeTodosUiState(raw: unknown): TodosUiState {
-  const candidate = raw as Partial<TodosUiState> | null;
-  const sortBy =
-    candidate?.sortBy === "title" || candidate?.sortBy === "completed"
-      ? candidate.sortBy
-      : "id";
-  return {
-    search: typeof candidate?.search === "string" ? candidate.search : "",
-    sortBy,
-    newTitle: typeof candidate?.newTitle === "string" ? candidate.newTitle : "",
-    editingTodoId:
-      typeof candidate?.editingTodoId === "number" &&
-      candidate.editingTodoId > 0
-        ? candidate.editingTodoId
-        : null,
-    draftTitle:
-      typeof candidate?.draftTitle === "string" ? candidate.draftTitle : "",
-  };
-}
-
 export function TodosPage() {
   const { todos, setTodos, isLoading, loadError } = useCachedUserTodos();
   const { user: activeUser } = useUser();
@@ -64,7 +44,6 @@ export function TodosPage() {
   const [uiState, setUiState] = usePersistentState<TodosUiState>(
     uiStateKey,
     DEFAULT_TODOS_UI_STATE,
-    sanitizeTodosUiState,
   );
   usePersistentScroll(scrollKey, Boolean(activeUser), !isLoading);
 
