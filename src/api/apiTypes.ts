@@ -32,6 +32,7 @@ export type PostUpdates = {
 
 export type NewComment = {
   postId: number;
+  userId: number;
   name: string;
   email: string;
   body: string;

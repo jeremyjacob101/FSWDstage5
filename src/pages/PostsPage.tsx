@@ -22,8 +22,11 @@ import {
   updatePost,
 } from "../api/api";
 
+type PostScope = "all" | "user";
+
 type PostsUiState = {
   search: string;
+  postScope: PostScope;
   showComments: boolean;
   selectedPostId: number | null;
   newPostTitle: string;
@@ -38,6 +41,7 @@ type PostsUiState = {
 
 const DEFAULT_POSTS_UI_STATE: PostsUiState = {
   search: "",
+  postScope: "all",
   showComments: false,
   selectedPostId: null,
   newPostTitle: "",
@@ -52,8 +56,10 @@ const DEFAULT_POSTS_UI_STATE: PostsUiState = {
 
 function sanitizePostsUiState(raw: unknown): PostsUiState {
   const candidate = raw as Partial<PostsUiState> | null;
+  const postScope: PostScope = candidate?.postScope === "user" ? "user" : "all";
   return {
     search: typeof candidate?.search === "string" ? candidate.search : "",
+    postScope,
     showComments: Boolean(candidate?.showComments),
     selectedPostId:
       typeof candidate?.selectedPostId === "number" &&
@@ -111,6 +117,7 @@ export function PostsPage() {
 
   const {
     search,
+    postScope,
     showComments,
     selectedPostId,
     newPostTitle,
@@ -128,8 +135,22 @@ export function PostsPage() {
     !isLoading && (!showComments || !isLoadingComments),
   );
 
+  const query = search.toLowerCase().trim();
+  const visiblePosts = useMemo(
+    () =>
+      posts.filter((post) => {
+        const matchesScope =
+          postScope === "all" || post.userId === currentUserId;
+        const matchesSearch =
+          String(post.id).includes(query) ||
+          post.title.toLowerCase().includes(query);
+        return matchesScope && matchesSearch;
+      }),
+    [currentUserId, postScope, posts, query],
+  );
+
   const selectedPost =
-    posts.find((post) => post.id === selectedPostId) ?? posts[0];
+    visiblePosts.find((post) => post.id === selectedPostId) ?? visiblePosts[0];
   const isEditingSelectedPost =
     selectedPost !== undefined && editingPostId === selectedPost.id;
   const postComments = useMemo(
@@ -176,7 +197,7 @@ export function PostsPage() {
 
   useEffect(() => {
     setUiState((currentState) => {
-      if (!posts.length) {
+      if (!visiblePosts.length) {
         if (
           currentState.selectedPostId == null &&
           currentState.editingPostId == null
@@ -195,14 +216,14 @@ export function PostsPage() {
 
       const selectedStillExists =
         currentState.selectedPostId != null &&
-        posts.some((post) => post.id === currentState.selectedPostId);
+        visiblePosts.some((post) => post.id === currentState.selectedPostId);
       const editingStillExists =
         currentState.editingPostId != null &&
-        posts.some((post) => post.id === currentState.editingPostId);
+        visiblePosts.some((post) => post.id === currentState.editingPostId);
 
       const nextSelectedPostId = selectedStillExists
         ? currentState.selectedPostId
-        : (posts[0]?.id ?? null);
+        : (visiblePosts[0]?.id ?? null);
       const nextEditingPostId = editingStillExists
         ? currentState.editingPostId
         : null;
@@ -234,7 +255,7 @@ export function PostsPage() {
         showComments: nextShowComments,
       };
     });
-  }, [posts, setUiState]);
+  }, [setUiState, visiblePosts]);
 
   useEffect(() => {
     setUiState((currentState) => {
@@ -256,17 +277,9 @@ export function PostsPage() {
     });
   }, [postComments, setUiState]);
 
-  const visiblePosts = posts.filter((post) => {
-    const query = search.toLowerCase().trim();
-    return (
-      String(post.id).includes(query) ||
-      post.title.toLowerCase().includes(query)
-    );
-  });
+  const isOwnPost = (post: Post) => post.userId === currentUserId;
 
-  const isOwnComment = (comment: Comment) =>
-    comment.email.trim().toLowerCase() ===
-    (activeUser?.email ?? "").trim().toLowerCase();
+  const isOwnComment = (comment: Comment) => comment.userId === currentUserId;
 
   const addPost: React.SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
@@ -309,6 +322,7 @@ export function PostsPage() {
       setError("");
       const comment = await createComment({
         postId: selectedPost.id,
+        userId: currentUserId,
         name: activeUser?.name ?? "",
         email: activeUser?.email ?? "",
         body,
@@ -326,6 +340,8 @@ export function PostsPage() {
   };
 
   const startEditingPost = (post: Post) => {
+    if (!isOwnPost(post)) return;
+
     setUiState((currentState) => ({
       ...currentState,
       selectedPostId: post.id,
@@ -423,7 +439,14 @@ export function PostsPage() {
   const savePost = async (post: Post) => {
     const title = draftPostTitle.trim();
     const body = draftPostBody.trim();
-    if (!title || !body || pendingPostIds.includes(post.id)) return;
+    if (
+      !title ||
+      !body ||
+      !isOwnPost(post) ||
+      pendingPostIds.includes(post.id)
+    ) {
+      return;
+    }
 
     try {
       setError("");
@@ -446,7 +469,7 @@ export function PostsPage() {
   };
 
   const removePost = async (post: Post) => {
-    if (pendingPostIds.includes(post.id)) return;
+    if (!isOwnPost(post) || pendingPostIds.includes(post.id)) return;
 
     try {
       setError("");
@@ -496,6 +519,30 @@ export function PostsPage() {
           }
           placeholder="Search post id or title"
         />
+        <div className="row-actions">
+          <Button
+            variant={postScope === "all" ? "primary" : "secondary"}
+            onClick={() =>
+              setUiState((currentState) => ({
+                ...currentState,
+                postScope: "all",
+              }))
+            }
+          >
+            All Posts
+          </Button>
+          <Button
+            variant={postScope === "user" ? "primary" : "secondary"}
+            onClick={() =>
+              setUiState((currentState) => ({
+                ...currentState,
+                postScope: "user",
+              }))
+            }
+          >
+            User Posts
+          </Button>
+        </div>
       </Toolbar>
       <form className="inline-form post-compose-form" onSubmit={addPost}>
         <input
@@ -541,6 +588,7 @@ export function PostsPage() {
           {isLoading && <EmptyState message="Loading posts..." />}
           {visiblePosts.map((post) => {
             const isPending = pendingPostIds.includes(post.id);
+            const isOwn = isOwnPost(post);
 
             return (
               <article
@@ -570,14 +618,14 @@ export function PostsPage() {
                   <Button
                     variant="secondary"
                     onClick={() => startEditingPost(post)}
-                    disabled={isPending}
+                    disabled={isPending || !isOwn}
                   >
                     Edit
                   </Button>
                   <Button
                     variant="danger"
                     onClick={() => void removePost(post)}
-                    disabled={isPending}
+                    disabled={isPending || !isOwn}
                   >
                     {isPending ? "Working..." : "Delete"}
                   </Button>
@@ -586,7 +634,7 @@ export function PostsPage() {
             );
           })}
           {!isLoading && !visiblePosts.length && (
-            <EmptyState message="No posts match that search." />
+            <EmptyState message="No posts match this filter." />
           )}
         </div>
         <aside className="detail-panel">
@@ -658,6 +706,7 @@ export function PostsPage() {
                     <Button
                       variant="secondary"
                       onClick={() => startEditingPost(selectedPost)}
+                      disabled={!isOwnPost(selectedPost)}
                     >
                       Edit Post
                     </Button>

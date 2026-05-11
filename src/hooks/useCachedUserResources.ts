@@ -26,11 +26,11 @@ export function useCachedUserTodos() {
   return { todos, setTodos, isLoading: loading, loadError: error };
 }
 
-/** Cached posts for the logged-in user. */
+/** Cached posts for all users (readable by any logged-in user). */
 export function useCachedUserPosts() {
   const { user } = useUser();
   const userId = user?.id;
-  const url = resourceUrl(`/posts?userId=${userId ?? 0}`);
+  const url = resourceUrl("/posts");
   const { data, loading, error, updateCache } = useCachedFetch<Post[]>(
     url,
     userId,

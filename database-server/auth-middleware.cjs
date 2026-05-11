@@ -78,6 +78,48 @@ function ensureOwnPost(req, res, currentUserId, postId) {
   return null;
 }
 
+function ensurePostResource(req, res, currentUserId, resourceId) {
+  if (resourceId == null) {
+    if (req.method === "GET") {
+      return null;
+    }
+    if (req.method === "POST") {
+      req.body = {
+        ...(req.body ?? {}),
+        userId: currentUserId,
+      };
+      return null;
+    }
+    return rejectForbidden(res, "Operation not allowed");
+  }
+
+  const post = findById(req, "posts", resourceId);
+  if (!post) {
+    return null;
+  }
+
+  if (req.method === "GET") {
+    return null;
+  }
+
+  if (Number(post.userId) !== currentUserId) {
+    return rejectForbidden(res, "Cannot modify another user's post");
+  }
+
+  if (req.method === "PATCH" && req.body?.userId != null) {
+    req.body = {
+      ...(req.body ?? {}),
+      userId: currentUserId,
+    };
+  }
+
+  return null;
+}
+
+function isOwnComment(comment, currentUserId) {
+  return Number(comment?.userId) === currentUserId;
+}
+
 function ensureOwnPhotoResource(req, res, currentUserId, resourceId) {
   if (resourceId == null) {
     const albumId =
@@ -116,7 +158,13 @@ function ensureOwnPhotoResource(req, res, currentUserId, resourceId) {
   return null;
 }
 
-function ensureOwnCommentResource(req, res, currentUserId, resourceId) {
+function ensureOwnCommentResource(
+  req,
+  res,
+  currentUser,
+  currentUserId,
+  resourceId,
+) {
   if (resourceId == null) {
     const postId =
       req.method === "GET"
@@ -125,7 +173,22 @@ function ensureOwnCommentResource(req, res, currentUserId, resourceId) {
     if (postId == null) {
       return rejectForbidden(res, "postId is required");
     }
-    return ensureOwnPost(req, res, currentUserId, postId);
+
+    const post = findById(req, "posts", postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (req.method === "POST") {
+      req.body = {
+        ...(req.body ?? {}),
+        userId: currentUserId,
+        email: currentUser.email,
+        name: currentUser.name,
+      };
+    }
+
+    return null;
   }
 
   const comment = findById(req, "comments", resourceId);
@@ -133,22 +196,28 @@ function ensureOwnCommentResource(req, res, currentUserId, resourceId) {
     return null;
   }
 
-  const byExistingPost = ensureOwnPost(
-    req,
-    res,
-    currentUserId,
-    Number(comment.postId),
-  );
-  if (byExistingPost) {
-    return byExistingPost;
+  if (req.method === "GET") {
+    return null;
+  }
+
+  if (!isOwnComment(comment, currentUserId)) {
+    return rejectForbidden(res, "Cannot modify another user's comment");
   }
 
   if (req.method === "PATCH" && req.body?.postId != null) {
-    const nextPostId = parsePositiveInt(req.body.postId);
-    if (nextPostId == null) {
-      return rejectForbidden(res, "postId must be a positive integer");
-    }
-    return ensureOwnPost(req, res, currentUserId, nextPostId);
+    req.body = {
+      ...(req.body ?? {}),
+      postId: Number(comment.postId),
+    };
+  }
+
+  if (req.method === "PATCH") {
+    req.body = {
+      ...(req.body ?? {}),
+      userId: currentUserId,
+      email: currentUser.email,
+      name: currentUser.name,
+    };
   }
 
   return null;
@@ -191,7 +260,7 @@ module.exports = function authMiddleware(req, res, next) {
     return next();
   }
 
-  if (resource === "todos" || resource === "posts" || resource === "albums") {
+  if (resource === "todos" || resource === "albums") {
     const result = ensureOwnDirectResource(
       req,
       res,
@@ -199,6 +268,12 @@ module.exports = function authMiddleware(req, res, next) {
       resource,
       resourceId,
     );
+    if (result) return result;
+    return next();
+  }
+
+  if (resource === "posts") {
+    const result = ensurePostResource(req, res, currentUserId, resourceId);
     if (result) return result;
     return next();
   }
@@ -213,6 +288,7 @@ module.exports = function authMiddleware(req, res, next) {
     const result = ensureOwnCommentResource(
       req,
       res,
+      currentUser,
       currentUserId,
       resourceId,
     );
