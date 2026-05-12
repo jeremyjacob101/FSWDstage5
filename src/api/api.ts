@@ -113,12 +113,9 @@ export function getTodosForUser(userId: number): Promise<Todo[]> {
 }
 
 export async function createTodo(todo: NewTodo): Promise<Todo> {
-  const currentTodos = await request<Todo[]>("/todos");
-  const nextId = Math.max(0, ...currentTodos.map((item) => item.id)) + 1;
-
   return request<Todo>("/todos", {
     method: "POST",
-    body: JSON.stringify({ ...todo, id: nextId }),
+    body: JSON.stringify(todo),
   });
 }
 
@@ -141,12 +138,9 @@ export function getPostsForUser(userId: number): Promise<Post[]> {
 }
 
 export async function createPost(post: NewPost): Promise<Post> {
-  const currentPosts = await request<Post[]>("/posts");
-  const nextId = Math.max(0, ...currentPosts.map((item) => item.id)) + 1;
-
   return request<Post>("/posts", {
     method: "POST",
-    body: JSON.stringify({ ...post, id: nextId }),
+    body: JSON.stringify(post),
   });
 }
 
@@ -194,12 +188,9 @@ export function getAlbumsForUser(userId: number): Promise<Album[]> {
 }
 
 export async function createAlbum(album: NewAlbum): Promise<Album> {
-  const currentAlbums = await request<Album[]>("/albums");
-  const nextId = Math.max(0, ...currentAlbums.map((item) => item.id)) + 1;
-
   return request<Album>("/albums", {
     method: "POST",
-    body: JSON.stringify({ ...album, id: nextId }),
+    body: JSON.stringify(album),
   });
 }
 
@@ -214,12 +205,9 @@ export function getPhotosForAlbum(
 }
 
 export async function createPhoto(photo: NewPhoto): Promise<Photo> {
-  const currentPhotos = await request<Photo[]>("/photos");
-  const nextId = Math.max(0, ...currentPhotos.map((item) => item.id)) + 1;
-
   return request<Photo>("/photos", {
     method: "POST",
-    body: JSON.stringify({ ...photo, id: nextId }),
+    body: JSON.stringify(photo),
   });
 }
 
